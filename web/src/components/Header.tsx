@@ -58,7 +58,7 @@ export default function Header() {
                 aria-current={pathname === "/book" ? "page" : undefined}
                 onClick={() => setOpen(false)}
               >
-                {isCocina ? "Order dinner" : "Book a free walkthrough"}
+                {isCocina ? "Order dinner" : "Book a visit"}
               </Link>
             </li>
           </ul>

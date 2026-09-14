@@ -38,7 +38,7 @@ export default function Footer() {
               <Link href="/cocina">Cocina weekly menu</Link>
             </li>
             <li>
-              <Link href="/book">Book a free walkthrough</Link>
+              <Link href="/book">Book a visit</Link>
             </li>
           </ul>
         </div>

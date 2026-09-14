@@ -53,7 +53,7 @@ export default function PricingPage() {
                 For couples &amp; &quot;just keep it clean&quot; homes.
               </p>
               <Link className="btn ghost" href="/book">
-                Book a walkthrough
+                Join Casa Base
               </Link>
             </div>
 
@@ -82,7 +82,7 @@ export default function PricingPage() {
                 For busy families who want the week handled.
               </p>
               <Link className="btn" href="/book">
-                Book a walkthrough
+                Join Casa Familia
               </Link>
             </div>
 
@@ -112,7 +112,7 @@ export default function PricingPage() {
                 The full household plan — one text, all of it done.
               </p>
               <Link className="btn ghost" href="/book">
-                Book a walkthrough
+                Join Casa Completa
               </Link>
             </div>
           </div>

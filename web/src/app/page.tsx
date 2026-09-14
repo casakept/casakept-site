@@ -32,7 +32,7 @@ export default function HomePage() {
             }}
           >
             <Link className="btn" href="/book">
-              Book a free walkthrough
+              Get started
             </Link>
             <Link className="btn ghost" href="/pricing">
               See memberships
@@ -219,7 +219,7 @@ export default function HomePage() {
                 <li>Monthly errand run + 15% off extras</li>
               </ul>
               <Link className="btn" href="/book">
-                Start with a free walkthrough
+                Join Casa Familia
               </Link>
             </div>
             <div className="tier reveal">
@@ -257,7 +257,7 @@ export default function HomePage() {
               style={{ background: "var(--verde)", color: "var(--paper)" }}
               href="/book"
             >
-              Claim it at your walkthrough
+              Claim it when you join
             </Link>
           </div>
         </div>

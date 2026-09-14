@@ -1,0 +1,223 @@
+import { NextResponse } from "next/server";
+import type Stripe from "stripe";
+import { stripe } from "@/lib/stripe/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import type { Database } from "@/lib/supabase/database.types";
+
+export const runtime = "nodejs";
+
+type ServiceClient = ReturnType<typeof createServiceClient>;
+
+// This API version moved subscription billing periods onto subscription
+// items (not the subscription itself) — see SubscriptionItem.current_period_*.
+const SUBSCRIPTION_STATUS_MAP: Record<
+  Stripe.Subscription.Status,
+  Database["public"]["Enums"]["subscription_status"] | null
+> = {
+  active: "active",
+  trialing: "active",
+  past_due: "past_due",
+  paused: "paused",
+  canceled: "cancelled",
+  unpaid: "past_due",
+  incomplete: null,
+  incomplete_expired: null,
+};
+
+export async function POST(request: Request) {
+  const signature = request.headers.get("stripe-signature");
+  const body = await request.text();
+
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(
+      body,
+      signature!,
+      process.env.STRIPE_WEBHOOK_SECRET!
+    );
+  } catch {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  }
+
+  const supabase = createServiceClient();
+
+  switch (event.type) {
+    case "customer.subscription.created":
+    case "customer.subscription.updated":
+      await syncSubscription(supabase, event.data.object);
+      break;
+
+    case "customer.subscription.deleted": {
+      const { error } = await supabase
+        .from("subscriptions")
+        .update({
+          status: "cancelled",
+          cancelled_at: new Date().toISOString(),
+        })
+        .eq("stripe_subscription_id", event.data.object.id);
+      if (error) console.error("subscription.deleted update failed:", error);
+      break;
+    }
+
+    case "invoice.paid":
+      await recordInvoicePayment(supabase, event.data.object);
+      break;
+
+    case "payment_intent.succeeded":
+      await handlePaymentIntentSucceeded(supabase, event.data.object);
+      break;
+
+    case "payment_intent.payment_failed": {
+      const { error } = await supabase
+        .from("payments")
+        .update({ status: "failed" })
+        .eq("stripe_payment_intent_id", event.data.object.id);
+      if (error) console.error("payment_intent.payment_failed update failed:", error);
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  return NextResponse.json({ received: true });
+}
+
+async function syncSubscription(supabase: ServiceClient, sub: Stripe.Subscription) {
+  const mappedStatus = SUBSCRIPTION_STATUS_MAP[sub.status];
+  // incomplete / incomplete_expired — payment never went through, nothing
+  // to reflect locally yet.
+  if (!mappedStatus) return;
+
+  const item = sub.items.data[0];
+  if (!item) return;
+  const periodStart = new Date(item.current_period_start * 1000);
+  const periodEnd = new Date(item.current_period_end * 1000);
+
+  const { data: existing } = await supabase
+    .from("subscriptions")
+    .select("id")
+    .eq("stripe_subscription_id", sub.id)
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await supabase
+      .from("subscriptions")
+      .update({
+        status: mappedStatus,
+        current_period_start: periodStart.toISOString(),
+        current_period_end: periodEnd.toISOString(),
+      })
+      .eq("id", existing.id);
+    if (error) console.error("syncSubscription update failed:", error);
+    return;
+  }
+
+  const customerId = sub.metadata.customer_id;
+  const planId = sub.metadata.plan_id;
+  if (!customerId || !planId) {
+    console.error("syncSubscription: missing customer_id/plan_id metadata", {
+      subId: sub.id,
+      metadata: sub.metadata,
+    });
+    return;
+  }
+
+  const minimumTermMonths = Number(sub.metadata.minimum_term_months ?? "3");
+  const minimumTermEnd = new Date(periodStart);
+  minimumTermEnd.setMonth(minimumTermEnd.getMonth() + minimumTermMonths);
+
+  const { error } = await supabase.from("subscriptions").insert({
+    customer_id: customerId,
+    plan_id: planId,
+    status: mappedStatus,
+    stripe_customer_id:
+      typeof sub.customer === "string" ? sub.customer : sub.customer.id,
+    stripe_subscription_id: sub.id,
+    current_period_start: periodStart.toISOString(),
+    current_period_end: periodEnd.toISOString(),
+    minimum_term_end: minimumTermEnd.toISOString(),
+  });
+  if (error) console.error("syncSubscription insert failed:", error);
+}
+
+async function recordInvoicePayment(supabase: ServiceClient, invoiceStub: Stripe.Invoice) {
+  const subscriptionRef = invoiceStub.parent?.subscription_details?.subscription;
+  const stripeSubscriptionId =
+    typeof subscriptionRef === "string" ? subscriptionRef : subscriptionRef?.id;
+  if (!stripeSubscriptionId) return;
+
+  let { data: subscription } = await supabase
+    .from("subscriptions")
+    .select("id, customer_id")
+    .eq("stripe_subscription_id", stripeSubscriptionId)
+    .maybeSingle();
+
+  if (!subscription) {
+    // Webhook delivery order isn't guaranteed — invoice.paid can arrive
+    // before customer.subscription.updated has synced the local row. Sync
+    // it directly here rather than silently dropping this payment.
+    const stripeSub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    await syncSubscription(supabase, stripeSub);
+    ({ data: subscription } = await supabase
+      .from("subscriptions")
+      .select("id, customer_id")
+      .eq("stripe_subscription_id", stripeSubscriptionId)
+      .maybeSingle());
+  }
+  if (!subscription) return;
+
+  // confirmation_secret isn't included in the default webhook payload —
+  // refetch the invoice with it explicitly expanded.
+  const invoice = await stripe.invoices.retrieve(invoiceStub.id!, {
+    expand: ["confirmation_secret"],
+  });
+  const paymentIntentId = invoice.confirmation_secret?.client_secret
+    ? invoice.confirmation_secret.client_secret.split("_secret_")[0]
+    : null;
+
+  if (paymentIntentId) {
+    const { data: existingPayment } = await supabase
+      .from("payments")
+      .select("id")
+      .eq("stripe_payment_intent_id", paymentIntentId)
+      .maybeSingle();
+    if (existingPayment) return;
+  }
+
+  const { error } = await supabase.from("payments").insert({
+    customer_id: subscription.customer_id,
+    subscription_id: subscription.id,
+    amount_cents: invoice.amount_paid,
+    status: "succeeded",
+    stripe_payment_intent_id: paymentIntentId,
+  });
+  if (error) console.error("recordInvoicePayment insert failed:", error);
+}
+
+async function handlePaymentIntentSucceeded(
+  supabase: ServiceClient,
+  paymentIntent: Stripe.PaymentIntent
+) {
+  const { data: payment } = await supabase
+    .from("payments")
+    .select("id, booking_id")
+    .eq("stripe_payment_intent_id", paymentIntent.id)
+    .maybeSingle();
+  if (!payment) return;
+
+  const { error: paymentError } = await supabase
+    .from("payments")
+    .update({ status: "succeeded" })
+    .eq("id", payment.id);
+  if (paymentError) console.error("handlePaymentIntentSucceeded payment update failed:", paymentError);
+
+  if (payment.booking_id) {
+    const { error: bookingError } = await supabase
+      .from("bookings")
+      .update({ status: "confirmed" })
+      .eq("id", payment.booking_id)
+      .eq("status", "pending");
+    if (bookingError) console.error("handlePaymentIntentSucceeded booking update failed:", bookingError);
+  }
+}

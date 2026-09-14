@@ -195,6 +195,7 @@ export type Database = {
           name: string
           slug: string
           sort_order: number
+          stripe_price_id: string | null
           updated_at: string
         }
         Insert: {
@@ -208,6 +209,7 @@ export type Database = {
           name: string
           slug: string
           sort_order?: number
+          stripe_price_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -221,6 +223,7 @@ export type Database = {
           name?: string
           slug?: string
           sort_order?: number
+          stripe_price_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -377,6 +380,7 @@ export type Database = {
           phone: string | null
           role: Database["public"]["Enums"]["user_role"]
           sms_opt_in: boolean
+          stripe_customer_id: string | null
           updated_at: string
         }
         Insert: {
@@ -386,6 +390,7 @@ export type Database = {
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           sms_opt_in?: boolean
+          stripe_customer_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -395,6 +400,7 @@ export type Database = {
           phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           sms_opt_in?: boolean
+          stripe_customer_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -658,6 +664,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      active_staff_directory: {
+        Args: never
+        Returns: {
+          full_name: string
+          id: string
+        }[]
+      }
       current_role_name: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]

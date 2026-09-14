@@ -211,7 +211,7 @@ export default function ServicesPage() {
           </p>
           <div style={{ marginTop: 26 }}>
             <Link className="btn" href="/book">
-              Book a free walkthrough
+              Book a visit
             </Link>
           </div>
         </div>
