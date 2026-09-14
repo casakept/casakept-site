@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import SubscribeButton from "@/components/account/SubscribeButton";
+import CancelMembershipButton from "@/components/account/CancelMembershipButton";
+import PastDuePaymentBanner from "@/components/account/PastDuePaymentBanner";
 
 export const metadata: Metadata = {
   title: "Membership",
@@ -25,10 +27,10 @@ export default async function MembershipPage() {
   const { data: subscription } = await supabase
     .from("subscriptions")
     .select(
-      "id, current_period_start, current_period_end, minimum_term_end, membership_plans(id, name, monthly_price_cents)"
+      "id, status, current_period_start, current_period_end, minimum_term_end, cancel_at_period_end, membership_plans(id, name, monthly_price_cents)"
     )
     .eq("customer_id", user!.id)
-    .eq("status", "active")
+    .in("status", ["active", "past_due"])
     .maybeSingle();
 
   if (subscription && subscription.membership_plans) {
@@ -48,6 +50,7 @@ export default async function MembershipPage() {
     return (
       <div>
         <h3>Your membership</h3>
+        {subscription.status === "past_due" && <PastDuePaymentBanner />}
         <div className="card" style={{ marginTop: 14, maxWidth: 480 }}>
           <strong style={{ color: "var(--verde)", fontSize: 18 }}>{plan.name}</strong>
           <p className="price-line">${(plan.monthly_price_cents / 100).toFixed(0)}/mo</p>
@@ -59,6 +62,10 @@ export default async function MembershipPage() {
             Minimum term through{" "}
             {new Date(subscription.minimum_term_end).toLocaleDateString()}.
           </p>
+          <CancelMembershipButton
+            cancelAtPeriodEnd={subscription.cancel_at_period_end}
+            currentPeriodEnd={subscription.current_period_end}
+          />
         </div>
 
         <h3 style={{ marginTop: 30 }}>This period&apos;s allowances</h3>

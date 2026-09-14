@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateStripeCustomerId } from "@/lib/stripe/customer";
 import { stripe } from "@/lib/stripe/server";
@@ -76,4 +77,118 @@ export async function startSubscriptionAction(
   }
 
   return { clientSecret, subscriptionId: subscription.id };
+}
+
+export type MembershipActionResult = { error: string } | { success: true };
+
+// Schedules cancellation for the end of the current billing period (rather
+// than cancelling immediately) so the member keeps access/entitlements
+// they've already paid for. The local `subscriptions` row is NOT updated
+// here — the webhook's customer.subscription.updated handler syncs
+// cancel_at_period_end once Stripe confirms the change.
+export async function cancelSubscriptionAction(): Promise<MembershipActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in." };
+
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select("id, stripe_subscription_id, minimum_term_end, cancel_at_period_end")
+    .eq("customer_id", user.id)
+    .in("status", ["active", "past_due"])
+    .maybeSingle();
+
+  if (!subscription || !subscription.stripe_subscription_id) {
+    return { error: "You don't have an active membership to cancel." };
+  }
+  if (subscription.cancel_at_period_end) {
+    return { error: "Your membership is already scheduled to cancel." };
+  }
+  if (new Date(subscription.minimum_term_end) > new Date()) {
+    return {
+      error: `Your membership has a minimum term through ${new Date(
+        subscription.minimum_term_end
+      ).toLocaleDateString()}. You can cancel starting then.`,
+    };
+  }
+
+  await stripe.subscriptions.update(subscription.stripe_subscription_id, {
+    cancel_at_period_end: true,
+  });
+
+  revalidatePath("/account/membership");
+  return { success: true };
+}
+
+// Reverses a pending (not-yet-effective) cancellation.
+export async function resumeSubscriptionAction(): Promise<MembershipActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in." };
+
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select("id, stripe_subscription_id, cancel_at_period_end")
+    .eq("customer_id", user.id)
+    .in("status", ["active", "past_due"])
+    .maybeSingle();
+
+  if (!subscription || !subscription.stripe_subscription_id || !subscription.cancel_at_period_end) {
+    return { error: "Your membership isn't scheduled to cancel." };
+  }
+
+  await stripe.subscriptions.update(subscription.stripe_subscription_id, {
+    cancel_at_period_end: false,
+  });
+
+  revalidatePath("/account/membership");
+  return { success: true };
+}
+
+export type RetryPaymentResult = { error: string } | { clientSecret: string };
+
+// Returns a fresh client secret for the subscription's currently open
+// invoice so the member can confirm it with a new payment method via Stripe
+// Elements. Because subscriptions were created with
+// payment_settings.save_default_payment_method: "on_subscription", a
+// successful confirmation here also becomes the subscription's new default
+// payment method — so future renewals use it automatically.
+export async function retryPastDuePaymentAction(): Promise<RetryPaymentResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in." };
+
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select("stripe_subscription_id")
+    .eq("customer_id", user.id)
+    .eq("status", "past_due")
+    .maybeSingle();
+
+  if (!subscription || !subscription.stripe_subscription_id) {
+    return { error: "You don't have a past-due membership payment." };
+  }
+
+  const stripeSub = await stripe.subscriptions.retrieve(
+    subscription.stripe_subscription_id,
+    { expand: ["latest_invoice.confirmation_secret"] }
+  );
+  const invoice = stripeSub.latest_invoice as Stripe.Invoice | null;
+
+  if (!invoice || invoice.status !== "open") {
+    return { error: "No outstanding payment found. Try refreshing the page." };
+  }
+
+  const clientSecret = invoice.confirmation_secret?.client_secret;
+  if (!clientSecret) {
+    return { error: "Could not start payment. Please try again." };
+  }
+
+  return { clientSecret };
 }
