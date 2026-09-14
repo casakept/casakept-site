@@ -152,4 +152,14 @@ form input:focus,form select:focus,form textarea:focus{outline:3px solid rgba(23
 .reveal.in{opacity:1;transform:none;}
 @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;}}
 
+/* ---------- auth pages ---------- */
+.auth-wrap{max-width:420px;margin:0 auto;}
+.form-msg{border-radius:10px;padding:12px 16px;font-size:14px;margin-bottom:18px;}
+.form-msg.error{background:#fbe6e0;color:var(--chile);border:1.5px solid var(--chile);}
+.form-msg.success{background:#eaf0e7;color:var(--verde);border:1.5px solid var(--verde);}
+.form-check{display:flex;align-items:flex-start;gap:10px;margin-bottom:18px;}
+.form-check input{width:auto;margin-top:3px;}
+.form-check label{text-transform:none;font-size:13px;font-weight:400;letter-spacing:0;color:#3c463f;}
+.auth-switch{text-align:center;font-size:14px;color:#4a544e;margin-top:18px;}
+
 :focus-visible{outline:3px solid var(--marigold);outline-offset:2px;}
