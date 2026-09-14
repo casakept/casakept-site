@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Book a Free Walkthrough — CasaKept | DFW Home Concierge</title>
+<meta name="description" content="Book your free CasaKept walkthrough in Dallas–Fort Worth. Get an exact quote for cleaning, laundry, groceries, and meals — no pressure, estimate valid 14 days.">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Archivo:wght@400;500;700&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap nav">
+    <a class="logo" href="index.html">Casa<span>Kept</span></a>
+    <button class="nav-toggle" aria-label="Open menu" aria-expanded="false">☰</button>
+    <ul class="nav-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="services.html">Services</a></li>
+      <li><a href="pricing.html">Memberships</a></li>
+      <li><a href="cocina.html">Cocina</a></li>
+      <li><a class="nav-cta" href="book.html" aria-current="page">Book a free walkthrough</a></li>
+    </ul>
+  </div>
+</header>
+
+<main>
+  <section class="section">
+    <div class="wrap" style="display:grid;grid-template-columns:1fr 1fr;gap:52px;align-items:start;">
+      <div>
+        <span class="eyebrow">Free walkthrough · no pressure</span>
+        <h1 style="font-size:clamp(32px,4.5vw,46px);">Let's look at your list.</h1>
+        <p class="lede" style="margin-top:14px;">A 20-minute walkthrough gets you an exact quote on one page — services, membership options, and your founding rate, locked for life. Estimate valid 14 days, and nothing starts until you say so.</p>
+        <div style="margin-top:26px;">
+          <h3 style="font-size:16px;">What to expect</h3>
+          <ul class="chk" style="margin-top:8px;">
+            <li>We walk the home together and note your priorities</li>
+            <li>You get an exact price — no ranges, no surprises</li>
+            <li>Membership signups claim the 50%-off onboarding deep clean</li>
+            <li>Prefer to skip the visit? Book a one-time clean directly by text</li>
+          </ul>
+        </div>
+        <div class="card" style="margin-top:26px;background:var(--verde);border-color:var(--verde);">
+          <p style="color:var(--paper);font-size:15px;"><strong style="color:var(--marigold);">Faster by text:</strong> send "DONE" to <strong style="color:var(--paper);">(817) 555-0142</strong> and we'll set it up in one thread. Se habla español.</p>
+        </div>
+      </div>
+
+      <div class="card" style="padding:30px;">
+        <h3 style="margin-bottom:16px;">Request your walkthrough</h3>
+        <!-- Wire this form to Formspree, Netlify Forms, or your booking platform.
+             For Netlify: add data-netlify="true" to the form tag and deploy on Netlify.
+             For Formspree: set action="https://formspree.io/f/YOUR_ID" method="POST" -->
+        <form name="walkthrough" method="POST" action="#">
+          <div class="field"><label for="name">Name</label><input id="name" name="name" type="text" autocomplete="name" required></div>
+          <div class="field"><label for="phone">Phone (call/text)</label><input id="phone" name="phone" type="tel" autocomplete="tel" required></div>
+          <div class="field"><label for="zip">ZIP code</label><input id="zip" name="zip" type="text" inputmode="numeric" autocomplete="postal-code" required></div>
+          <div class="field"><label for="size">Approximate home size</label>
+            <select id="size" name="size">
+              <option>Under 1,500 sq ft</option>
+              <option selected>1,500–2,500 sq ft</option>
+              <option>2,500–3,500 sq ft</option>
+              <option>3,500+ sq ft</option>
+            </select>
+          </div>
+          <div class="field"><label for="interest">Most interested in</label>
+            <select id="interest" name="interest">
+              <option>Casa Familia membership</option>
+              <option>Casa Base membership</option>
+              <option>Casa Completa membership</option>
+              <option>One-time deep clean</option>
+              <option>Laundry service</option>
+              <option>Cocina meals</option>
+              <option>Not sure yet — walk me through it</option>
+            </select>
+          </div>
+          <div class="field"><label for="notes">Anything we should know? <span style="text-transform:none;font-weight:400;color:#9aa49d;">(pets, gate codes, priorities)</span></label><textarea id="notes" name="notes" rows="3"></textarea></div>
+          <button class="btn" type="submit" style="width:100%;">Request my free walkthrough</button>
+          <p style="font-size:11px;color:#9aa49d;margin-top:10px;">We'll text you within one business day to confirm a time. No spam, ever.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap foot-grid">
+    <div>
+      <a class="logo" href="index.html">Casa<span>Kept</span></a>
+      <p style="margin-top:10px;max-width:300px;">Your home, handled. Cleaning, laundry, groceries, meals &amp; errands across the Dallas–Fort Worth metroplex.</p>
+      <p style="margin-top:12px;"><strong style="color:var(--paper);">Text "DONE" to (817) 555-0142</strong><br>hola@casakept.com</p>
+    </div>
+    <div>
+      <p class="foot-head">Explore</p>
+      <ul>
+        <li><a href="services.html">Services &amp; what's included</a></li>
+        <li><a href="pricing.html">Memberships &amp; pricing</a></li>
+        <li><a href="cocina.html">Cocina weekly menu</a></li>
+        <li><a href="book.html">Book a free walkthrough</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="foot-head">Service area</p>
+      <ul>
+        <li>Watauga · Keller · North Richland Hills</li>
+        <li>Fort Worth · Southlake · Colleyville</li>
+        <li>&amp; the greater DFW metroplex</li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap fineprint">
+    <span>© 2026 CasaKept LLC · Licensed &amp; insured · Se habla español</span>
+    <span>Memberships require a three-month minimum · Prices subject to change</span>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>
