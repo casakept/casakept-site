@@ -213,6 +213,190 @@ export type Database = {
           },
         ]
       }
+      estimates: {
+        Row: {
+          ack_carpet_access: boolean
+          ack_estimate_validity: boolean
+          ack_guarantee: boolean
+          ack_membership_terms: boolean
+          ack_services_guide: boolean
+          address_line1: string
+          approx_sq_ft: number | null
+          bathrooms: number | null
+          bedrooms: number | null
+          city: string
+          condition_bathrooms: number | null
+          condition_clutter: number | null
+          condition_dust: number | null
+          condition_floors: number | null
+          condition_kitchen: number | null
+          condition_notes: string | null
+          condition_windows: number | null
+          contact_email: string | null
+          contact_name: string
+          contact_phone: string | null
+          created_at: string
+          customer_id: string | null
+          customer_signature: string | null
+          customer_signed_at: string | null
+          estimator_id: string
+          estimator_signed_at: string | null
+          gate_code_needed: boolean
+          has_alarm: boolean
+          has_pets: boolean
+          id: string
+          monthly_total_cents: number
+          notes: string | null
+          onboarding_deep_clean: boolean
+          onboarding_deep_clean_cents: number
+          one_time_services: Json
+          one_time_total_cents: number
+          pets_notes: string | null
+          preferred_days: string[]
+          preferred_entry: string | null
+          preferred_window:
+            | Database["public"]["Enums"]["schedule_window"]
+            | null
+          product_preference: Database["public"]["Enums"]["product_preference"]
+          selected_plan_id: string | null
+          size_adjustment_cents: number
+          state: string
+          status: Database["public"]["Enums"]["estimate_status"]
+          stories: number | null
+          target_start_date: string | null
+          updated_at: string
+          zip: string | null
+        }
+        Insert: {
+          ack_carpet_access?: boolean
+          ack_estimate_validity?: boolean
+          ack_guarantee?: boolean
+          ack_membership_terms?: boolean
+          ack_services_guide?: boolean
+          address_line1: string
+          approx_sq_ft?: number | null
+          bathrooms?: number | null
+          bedrooms?: number | null
+          city: string
+          condition_bathrooms?: number | null
+          condition_clutter?: number | null
+          condition_dust?: number | null
+          condition_floors?: number | null
+          condition_kitchen?: number | null
+          condition_notes?: string | null
+          condition_windows?: number | null
+          contact_email?: string | null
+          contact_name: string
+          contact_phone?: string | null
+          created_at?: string
+          customer_id?: string | null
+          customer_signature?: string | null
+          customer_signed_at?: string | null
+          estimator_id: string
+          estimator_signed_at?: string | null
+          gate_code_needed?: boolean
+          has_alarm?: boolean
+          has_pets?: boolean
+          id?: string
+          monthly_total_cents?: number
+          notes?: string | null
+          onboarding_deep_clean?: boolean
+          onboarding_deep_clean_cents?: number
+          one_time_services?: Json
+          one_time_total_cents?: number
+          pets_notes?: string | null
+          preferred_days?: string[]
+          preferred_entry?: string | null
+          preferred_window?:
+            | Database["public"]["Enums"]["schedule_window"]
+            | null
+          product_preference?: Database["public"]["Enums"]["product_preference"]
+          selected_plan_id?: string | null
+          size_adjustment_cents?: number
+          state?: string
+          status?: Database["public"]["Enums"]["estimate_status"]
+          stories?: number | null
+          target_start_date?: string | null
+          updated_at?: string
+          zip?: string | null
+        }
+        Update: {
+          ack_carpet_access?: boolean
+          ack_estimate_validity?: boolean
+          ack_guarantee?: boolean
+          ack_membership_terms?: boolean
+          ack_services_guide?: boolean
+          address_line1?: string
+          approx_sq_ft?: number | null
+          bathrooms?: number | null
+          bedrooms?: number | null
+          city?: string
+          condition_bathrooms?: number | null
+          condition_clutter?: number | null
+          condition_dust?: number | null
+          condition_floors?: number | null
+          condition_kitchen?: number | null
+          condition_notes?: string | null
+          condition_windows?: number | null
+          contact_email?: string | null
+          contact_name?: string
+          contact_phone?: string | null
+          created_at?: string
+          customer_id?: string | null
+          customer_signature?: string | null
+          customer_signed_at?: string | null
+          estimator_id?: string
+          estimator_signed_at?: string | null
+          gate_code_needed?: boolean
+          has_alarm?: boolean
+          has_pets?: boolean
+          id?: string
+          monthly_total_cents?: number
+          notes?: string | null
+          onboarding_deep_clean?: boolean
+          onboarding_deep_clean_cents?: number
+          one_time_services?: Json
+          one_time_total_cents?: number
+          pets_notes?: string | null
+          preferred_days?: string[]
+          preferred_entry?: string | null
+          preferred_window?:
+            | Database["public"]["Enums"]["schedule_window"]
+            | null
+          product_preference?: Database["public"]["Enums"]["product_preference"]
+          selected_plan_id?: string | null
+          size_adjustment_cents?: number
+          state?: string
+          status?: Database["public"]["Enums"]["estimate_status"]
+          stories?: number | null
+          target_start_date?: string | null
+          updated_at?: string
+          zip?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimates_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimates_estimator_id_fkey"
+            columns: ["estimator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimates_selected_plan_id_fkey"
+            columns: ["selected_plan_id"]
+            isOneToOne: false
+            referencedRelation: "membership_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       membership_plans: {
         Row: {
           active: boolean
@@ -877,8 +1061,10 @@ export type Database = {
         | "completed"
         | "cancelled"
       entitlement_frequency: "weekly" | "biweekly" | "monthly" | "quarterly"
+      estimate_status: "draft" | "sent" | "converted" | "declined"
       notification_channel: "email" | "sms"
       payment_status: "pending" | "succeeded" | "failed" | "refunded"
+      product_preference: "standard" | "hypoallergenic" | "pet_safe"
       schedule_window: "morning" | "midday" | "afternoon"
       service_type:
         | "standard_clean"
@@ -1035,8 +1221,10 @@ export const Constants = {
         "cancelled",
       ],
       entitlement_frequency: ["weekly", "biweekly", "monthly", "quarterly"],
+      estimate_status: ["draft", "sent", "converted", "declined"],
       notification_channel: ["email", "sms"],
       payment_status: ["pending", "succeeded", "failed", "refunded"],
+      product_preference: ["standard", "hypoallergenic", "pet_safe"],
       schedule_window: ["morning", "midday", "afternoon"],
       service_type: [
         "standard_clean",

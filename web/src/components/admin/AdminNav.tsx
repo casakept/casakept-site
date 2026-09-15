@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/admin/staff", label: "Staff" },
   { href: "/admin/scores", label: "Scores" },
   { href: "/admin/cocina", label: "Cocina menu" },
+  { href: "/admin/estimates", label: "Estimates" },
 ];
 
 export default function AdminNav() {
