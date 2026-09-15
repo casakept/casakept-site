@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import ScoreBookingRow, { type ScorableBooking } from "@/components/admin/ScoreBookingRow";
 
 export const metadata: Metadata = {
@@ -16,12 +17,35 @@ export default async function AdminScoresPage() {
        staff:staff!bookings_assigned_staff_id_fkey(profile:profiles!staff_id_fkey(full_name)),
        customer:profiles!bookings_customer_id_fkey(full_name),
        visit_score:visit_scores(quality_score, customer_score, timeliness_score, professionalism_score, total_score, notes, event_type),
-       visit_checkin:visit_checkins(check_in_at, check_out_at)`
+       visit_checkin:visit_checkins(check_in_at, check_out_at),
+       checklist:visit_checklist_entries(completed, photo_path, item:checklist_items(name))`
     )
     .eq("status", "completed")
     .not("assigned_staff_id", "is", null)
     .order("scheduled_date", { ascending: false })
     .limit(50);
+
+  // Bucket is private -- generate short-lived signed URLs server-side for
+  // any attached photos rather than exposing the bucket publicly.
+  const photoPaths = (bookings ?? []).flatMap((b) =>
+    b.checklist.map((c) => c.photo_path).filter((p): p is string => !!p)
+  );
+  const signedUrlByPath = new Map<string, string>();
+  if (photoPaths.length > 0) {
+    const { data: signed } = await createServiceClient()
+      .storage.from("visit-photos")
+      .createSignedUrls(photoPaths, 60 * 60);
+    signed?.forEach((s) => {
+      if (s.signedUrl) signedUrlByPath.set(s.path ?? "", s.signedUrl);
+    });
+  }
+  const bookingsWithPhotoUrls = (bookings ?? []).map((b) => ({
+    ...b,
+    checklist: b.checklist.map((c) => ({
+      ...c,
+      photo_url: c.photo_path ? (signedUrlByPath.get(c.photo_path) ?? null) : null,
+    })),
+  }));
 
   return (
     <div>
@@ -29,11 +53,11 @@ export default async function AdminScoresPage() {
         Completed visits, most recent first. Score each visit against the Crew Performance Scorecard.
       </p>
 
-      {!bookings || bookings.length === 0 ? (
+      {bookingsWithPhotoUrls.length === 0 ? (
         <p style={{ color: "#6a746c" }}>No completed visits to score yet.</p>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
-          {bookings.map((b) => (
+          {bookingsWithPhotoUrls.map((b) => (
             <ScoreBookingRow key={b.id} booking={b as ScorableBooking} />
           ))}
         </div>

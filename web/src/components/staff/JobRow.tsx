@@ -4,20 +4,28 @@ import { useActionState } from "react";
 import { advanceBookingStatusAction, type StaffBookingActionState } from "@/lib/actions/staff-bookings";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import CheckInButton from "./CheckInButton";
+import ChecklistSection, { type ChecklistCatalogItem, type ChecklistEntry } from "./ChecklistSection";
 import type { Database } from "@/lib/supabase/database.types";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
+type ServiceType = Database["public"]["Enums"]["service_type"];
+
+// Only these service types are "cleaning visits" that get a quality
+// checklist at all -- add-ons like laundry/grocery/errand don't.
+const CHECKLIST_SERVICE_TYPES: ServiceType[] = ["standard_clean", "deep_clean", "move_out_clean"];
+const DEEP_CLEAN_SERVICE_TYPES: ServiceType[] = ["deep_clean", "move_out_clean"];
 
 export type StaffJob = {
   id: string;
   status: BookingStatus;
   scheduled_date: string;
   time_window: Database["public"]["Enums"]["schedule_window"];
-  service_type: Database["public"]["Enums"]["service_type"];
+  service_type: ServiceType;
   notes: string | null;
   customer: { full_name: string | null; phone: string | null } | null;
   property: { address_line1: string; city: string } | null;
   checkin: { check_in_at: string | null; check_out_at: string | null } | null;
+  checklist: ChecklistEntry[];
 };
 
 const NEXT_ACTION_LABEL: Partial<Record<BookingStatus, string>> = {
@@ -28,11 +36,20 @@ const NEXT_ACTION_LABEL: Partial<Record<BookingStatus, string>> = {
 
 const initialState: StaffBookingActionState = {};
 
-export default function JobRow({ job, staffId }: { job: StaffJob; staffId: string }) {
+export default function JobRow({
+  job,
+  staffId,
+  checklistItems,
+}: {
+  job: StaffJob;
+  staffId: string;
+  checklistItems: ChecklistCatalogItem[];
+}) {
   const action = advanceBookingStatusAction.bind(null, job.id, job.status);
   const [state, formAction, pending] = useActionState(action, initialState);
   const actionLabel = NEXT_ACTION_LABEL[job.status];
   const showCheckins = job.status !== "cancelled";
+  const showChecklist = job.status === "in_progress" && CHECKLIST_SERVICE_TYPES.includes(job.service_type);
 
   return (
     <div className="card">
@@ -92,6 +109,16 @@ export default function JobRow({ job, staffId }: { job: StaffJob; staffId: strin
             </span>
           )}
         </div>
+      )}
+
+      {showChecklist && (
+        <ChecklistSection
+          bookingId={job.id}
+          staffId={staffId}
+          items={checklistItems}
+          entries={job.checklist}
+          isDeepClean={DEEP_CLEAN_SERVICE_TYPES.includes(job.service_type)}
+        />
       )}
     </div>
   );

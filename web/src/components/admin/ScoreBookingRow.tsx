@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useActionState } from "react";
 import { scoreVisitAction, type ScoreVisitActionState } from "@/lib/actions/admin-scores";
 import { SCORE_CATEGORIES, VISIT_SCORE_EVENTS } from "@/lib/visitScoring";
@@ -24,6 +25,12 @@ export type ScorableBooking = {
     event_type: Database["public"]["Enums"]["visit_score_event"];
   } | null;
   visit_checkin: { check_in_at: string | null; check_out_at: string | null } | null;
+  checklist: {
+    completed: boolean;
+    photo_path: string | null;
+    photo_url: string | null;
+    item: { name: string } | null;
+  }[];
 };
 
 function formatTime(iso: string): string {
@@ -68,6 +75,33 @@ export default function ScoreBookingRow({ booking }: { booking: ScorableBooking 
           Checked in: {formatTime(booking.visit_checkin.check_in_at)}
           {booking.visit_checkin.check_out_at && ` · Checked out: ${formatTime(booking.visit_checkin.check_out_at)}`}
         </p>
+      )}
+
+      {booking.checklist.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <p style={{ fontSize: 12, color: "#9aa49d" }}>
+            Checklist: {booking.checklist.filter((c) => c.completed).length}/{booking.checklist.length} completed
+            -- evidence for your Quality score below, not an automatic calculation.
+          </p>
+          {booking.checklist.some((c) => c.photo_url) && (
+            <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {booking.checklist
+                .filter((c) => c.photo_url)
+                .map((c, i) => (
+                  <Image
+                    key={i}
+                    src={c.photo_url!}
+                    alt={c.item?.name ?? "Checklist photo"}
+                    title={c.item?.name ?? undefined}
+                    width={72}
+                    height={72}
+                    unoptimized
+                    style={{ objectFit: "cover", borderRadius: 8, border: "1.5px solid var(--line)" }}
+                  />
+                ))}
+            </div>
+          )}
+        </div>
       )}
 
       <form action={formAction} style={{ marginTop: 14 }}>

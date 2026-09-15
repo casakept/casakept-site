@@ -139,6 +139,36 @@ export type Database = {
           },
         ]
       }
+      checklist_items: {
+        Row: {
+          active: boolean
+          created_at: string
+          deep_clean_only: boolean
+          id: string
+          name: string
+          requires_photo: boolean
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          deep_clean_only?: boolean
+          id?: string
+          name: string
+          requires_photo?: boolean
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          deep_clean_only?: boolean
+          id?: string
+          name?: string
+          requires_photo?: boolean
+          sort_order?: number
+        }
+        Relationships: []
+      }
       cocina_menu_items: {
         Row: {
           active: boolean
@@ -875,6 +905,64 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "membership_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visit_checklist_entries: {
+        Row: {
+          booking_id: string
+          checklist_item_id: string
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          id: string
+          photo_path: string | null
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          booking_id: string
+          checklist_item_id: string
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          photo_path?: string | null
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string
+          checklist_item_id?: string
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          photo_path?: string | null
+          staff_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_checklist_entries_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_checklist_entries_checklist_item_id_fkey"
+            columns: ["checklist_item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_checklist_entries_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
             referencedColumns: ["id"]
           },
         ]

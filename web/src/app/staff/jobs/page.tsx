@@ -33,7 +33,7 @@ export default async function StaffJobsPage({ searchParams }: PageProps<"/staff/
   let query = supabase
     .from("bookings")
     .select(
-      "id, status, scheduled_date, time_window, service_type, notes, customer:profiles!bookings_customer_id_fkey(full_name, phone), property:properties(address_line1, city), checkin:visit_checkins(check_in_at, check_out_at)"
+      "id, status, scheduled_date, time_window, service_type, notes, customer:profiles!bookings_customer_id_fkey(full_name, phone), property:properties(address_line1, city), checkin:visit_checkins(check_in_at, check_out_at), checklist:visit_checklist_entries(checklist_item_id, completed, photo_path)"
     )
     .eq("assigned_staff_id", user!.id)
     .order("scheduled_date", { ascending: filter !== "completed" });
@@ -46,7 +46,14 @@ export default async function StaffJobsPage({ searchParams }: PageProps<"/staff/
     query = query.eq("status", "cancelled");
   }
 
-  const { data: jobs } = await query;
+  const [{ data: jobs }, { data: checklistItems }] = await Promise.all([
+    query,
+    supabase
+      .from("checklist_items")
+      .select("id, name, deep_clean_only, requires_photo, sort_order")
+      .eq("active", true)
+      .order("sort_order", { ascending: true }),
+  ]);
 
   return (
     <div>
@@ -67,7 +74,7 @@ export default async function StaffJobsPage({ searchParams }: PageProps<"/staff/
       ) : (
         <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
           {jobs.map((job) => (
-            <JobRow key={job.id} job={job as StaffJob} staffId={user!.id} />
+            <JobRow key={job.id} job={job as StaffJob} staffId={user!.id} checklistItems={checklistItems ?? []} />
           ))}
         </div>
       )}
