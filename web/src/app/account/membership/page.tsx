@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import SubscribeButton from "@/components/account/SubscribeButton";
 import CancelMembershipButton from "@/components/account/CancelMembershipButton";
 import PastDuePaymentBanner from "@/components/account/PastDuePaymentBanner";
+import { entitlementPeriodFor } from "@/lib/entitlements";
 
 export const metadata: Metadata = {
   title: "Membership",
@@ -27,7 +28,7 @@ export default async function MembershipPage() {
   const { data: subscription } = await supabase
     .from("subscriptions")
     .select(
-      "id, status, current_period_start, current_period_end, minimum_term_end, cancel_at_period_end, membership_plans(id, name, monthly_price_cents)"
+      "id, status, created_at, current_period_start, current_period_end, minimum_term_end, cancel_at_period_end, membership_plans(id, name, monthly_price_cents)"
     )
     .eq("customer_id", user!.id)
     .in("status", ["active", "past_due"])
@@ -40,11 +41,14 @@ export default async function MembershipPage() {
         .from("plan_entitlements")
         .select("service_type, quantity, frequency")
         .eq("plan_id", plan.id),
+      // Not filtered by billing period here -- quarterly entitlements (e.g.
+      // Casa Completa's deep clean) are keyed to a wider window than the
+      // subscription's monthly period, so each entitlement below looks up
+      // its own matching row instead.
       supabase
         .from("entitlement_usage")
-        .select("service_type, used_count, included_count")
-        .eq("subscription_id", subscription.id)
-        .eq("billing_period_start", subscription.current_period_start),
+        .select("service_type, used_count, included_count, billing_period_start")
+        .eq("subscription_id", subscription.id),
     ]);
 
     return (
@@ -71,7 +75,22 @@ export default async function MembershipPage() {
         <h3 style={{ marginTop: 30 }}>This period&apos;s allowances</h3>
         <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
           {entitlements?.map((e) => {
-            const used = usage?.find((u) => u.service_type === e.service_type)?.used_count ?? 0;
+            const period = entitlementPeriodFor(
+              e.frequency,
+              subscription.created_at,
+              subscription.current_period_start,
+              subscription.current_period_end
+            );
+            // Compare as instants, not strings -- Postgres/PostgREST may
+            // serialize the stored timestamptz differently than the ISO
+            // string we compute period.start as.
+            const periodStartMs = new Date(period.start).getTime();
+            const used =
+              usage?.find(
+                (u) =>
+                  u.service_type === e.service_type &&
+                  new Date(u.billing_period_start).getTime() === periodStartMs
+              )?.used_count ?? 0;
             return (
               <div key={e.service_type} className="pricerow">
                 <b>{SERVICE_LABELS[e.service_type] ?? e.service_type}</b>

@@ -674,6 +674,32 @@ export type Database = {
           id: string
         }[]
       }
+      claim_entitlement_usage: {
+        Args: {
+          p_included_count: number
+          p_period_end: string
+          p_period_start: string
+          p_service_type: Database["public"]["Enums"]["service_type"]
+          p_subscription_id: string
+        }
+        Returns: {
+          billing_period_end: string
+          billing_period_start: string
+          created_at: string
+          id: string
+          included_count: number
+          service_type: Database["public"]["Enums"]["service_type"]
+          subscription_id: string
+          updated_at: string
+          used_count: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "entitlement_usage"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       current_role_name: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]

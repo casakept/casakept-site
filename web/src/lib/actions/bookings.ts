@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getOrCreateStripeCustomerId } from "@/lib/stripe/customer";
 import { stripe } from "@/lib/stripe/server";
+import { entitlementPeriodFor, widestFrequency } from "@/lib/entitlements";
 import type { Database } from "@/lib/supabase/database.types";
 
 export type BookingActionState = {
@@ -77,7 +78,7 @@ export async function createBookingAction(
   const { data: subscription } = await supabase
     .from("subscriptions")
     .select(
-      "id, plan_id, current_period_start, current_period_end, membership_plans(extra_services_discount_pct)"
+      "id, plan_id, created_at, current_period_start, current_period_end, membership_plans(extra_services_discount_pct)"
     )
     .eq("customer_id", user.id)
     .eq("status", "active")
@@ -85,7 +86,7 @@ export async function createBookingAction(
 
   let priceCents = service.base_price_cents;
   let coveredByEntitlement = false;
-  let usage:
+  let claimedUsage:
     | Database["public"]["Tables"]["entitlement_usage"]["Row"]
     | null = null;
 
@@ -95,48 +96,42 @@ export async function createBookingAction(
     const discountPct = subscription.membership_plans?.extra_services_discount_pct ?? 0;
     priceCents = Math.round(priceCents * (1 - discountPct / 100));
 
-    const { data: existingUsage } = await supabase
-      .from("entitlement_usage")
-      .select("*")
-      .eq("subscription_id", subscription.id)
-      .eq("service_type", service.service_type)
-      .eq("billing_period_start", subscription.current_period_start)
-      .maybeSingle();
+    const { data: planEntitlements } = await supabase
+      .from("plan_entitlements")
+      .select("quantity, frequency")
+      .eq("plan_id", subscription.plan_id)
+      .eq("service_type", service.service_type);
 
-    usage = existingUsage;
+    const includedCount = (planEntitlements ?? []).reduce(
+      (sum, e) => sum + e.quantity,
+      0
+    );
 
-    if (!usage) {
-      const { data: planEntitlements } = await supabase
-        .from("plan_entitlements")
-        .select("quantity")
-        .eq("plan_id", subscription.plan_id)
-        .eq("service_type", service.service_type);
-
-      const includedCount = (planEntitlements ?? []).reduce(
-        (sum, e) => sum + e.quantity,
-        0
+    if (includedCount > 0) {
+      const frequency = widestFrequency(planEntitlements!.map((e) => e.frequency));
+      const period = entitlementPeriodFor(
+        frequency,
+        subscription.created_at,
+        subscription.current_period_start,
+        subscription.current_period_end
       );
 
-      if (includedCount > 0) {
-        const { data: createdUsage } = await serviceClient
-          .from("entitlement_usage")
-          .insert({
-            subscription_id: subscription.id,
-            service_type: service.service_type,
-            billing_period_start: subscription.current_period_start,
-            billing_period_end: subscription.current_period_end,
-            included_count: includedCount,
-            used_count: 0,
-          })
-          .select()
-          .single();
-        usage = createdUsage;
-      }
-    }
+      // Atomic: creates the usage row on first use and claims one unit in a
+      // single statement, so two concurrent bookings can't both read
+      // "not yet exhausted" and over-claim the entitlement.
+      const { data: claimedRows } = await serviceClient.rpc("claim_entitlement_usage", {
+        p_subscription_id: subscription.id,
+        p_service_type: service.service_type,
+        p_period_start: period.start,
+        p_period_end: period.end,
+        p_included_count: includedCount,
+      });
 
-    if (usage && usage.used_count < usage.included_count) {
-      coveredByEntitlement = true;
-      priceCents = 0;
+      if (claimedRows && claimedRows.length > 0) {
+        claimedUsage = claimedRows[0];
+        coveredByEntitlement = true;
+        priceCents = 0;
+      }
     }
   }
 
@@ -162,15 +157,18 @@ export async function createBookingAction(
     .single();
 
   if (bookingError || !booking) {
+    // The entitlement was already claimed above -- give it back since no
+    // booking actually got created.
+    if (claimedUsage) {
+      await serviceClient
+        .from("entitlement_usage")
+        .update({ used_count: claimedUsage.used_count - 1 })
+        .eq("id", claimedUsage.id);
+    }
     return { error: bookingError?.message ?? "Couldn't create that booking." };
   }
 
-  if (coveredByEntitlement && usage) {
-    await serviceClient
-      .from("entitlement_usage")
-      .update({ used_count: usage.used_count + 1 })
-      .eq("id", usage.id);
-
+  if (coveredByEntitlement) {
     revalidatePath("/account");
     revalidatePath("/account/book");
     revalidatePath("/account/membership");
