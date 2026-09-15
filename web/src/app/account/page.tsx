@@ -1,30 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 
 export const metadata: Metadata = {
   title: "My Account",
-};
-
-const SERVICE_LABELS: Record<string, string> = {
-  standard_clean: "Standard clean",
-  deep_clean: "Deep clean",
-  move_out_clean: "Move-in / move-out clean",
-  carpet_cleaning: "Carpet cleaning",
-  window_cleaning: "Window cleaning",
-  organization: "Home organization",
-  laundry: "Laundry",
-  laundry_rush: "Laundry (rush)",
-  grocery: "Grocery pickup + delivery",
-  fridge_restock: "Fridge cleanout + restock",
-  cocina_meal: "Cocina meal drop",
-  errand: "Errand",
-};
-
-const WINDOW_LABELS: Record<string, string> = {
-  morning: "Morning",
-  midday: "Midday",
-  afternoon: "Afternoon",
 };
 
 export default async function AccountOverviewPage() {

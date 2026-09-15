@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
+import { sendNotificationEmail } from "@/lib/email/send";
+import {
+  bookingConfirmedEmail,
+  bookingPaymentFailedEmail,
+  membershipActiveEmail,
+  membershipPastDueEmail,
+} from "@/lib/email/templates";
 import type { Database } from "@/lib/supabase/database.types";
 
 export const runtime = "nodejs";
@@ -68,11 +76,34 @@ export async function POST(request: Request) {
       break;
 
     case "payment_intent.payment_failed": {
-      const { error } = await supabase
+      const { data: payment, error } = await supabase
         .from("payments")
         .update({ status: "failed" })
-        .eq("stripe_payment_intent_id", event.data.object.id);
+        .eq("stripe_payment_intent_id", event.data.object.id)
+        .select("customer_id, booking_id")
+        .maybeSingle();
       if (error) console.error("payment_intent.payment_failed update failed:", error);
+
+      if (payment?.booking_id) {
+        const { data: booking } = await supabase
+          .from("bookings")
+          .select("service_type, scheduled_date")
+          .eq("id", payment.booking_id)
+          .maybeSingle();
+        if (booking) {
+          const { subject, html } = bookingPaymentFailedEmail({
+            serviceLabel: SERVICE_LABELS[booking.service_type] ?? booking.service_type,
+            scheduledDate: booking.scheduled_date,
+          });
+          await sendNotificationEmail({
+            customerId: payment.customer_id,
+            bookingId: payment.booking_id,
+            template: "booking_payment_failed",
+            subject,
+            html,
+          });
+        }
+      }
       break;
     }
 
@@ -96,7 +127,7 @@ async function syncSubscription(supabase: ServiceClient, sub: Stripe.Subscriptio
 
   const { data: existing } = await supabase
     .from("subscriptions")
-    .select("id")
+    .select("id, status, customer_id")
     .eq("stripe_subscription_id", sub.id)
     .maybeSingle();
 
@@ -110,6 +141,18 @@ async function syncSubscription(supabase: ServiceClient, sub: Stripe.Subscriptio
       })
       .eq("id", existing.id);
     if (error) console.error("syncSubscription update failed:", error);
+
+    // Only alert on the transition into past_due, not on every webhook
+    // delivery while it stays past_due.
+    if (mappedStatus === "past_due" && existing.status !== "past_due") {
+      const { subject, html } = membershipPastDueEmail();
+      await sendNotificationEmail({
+        customerId: existing.customer_id,
+        template: "membership_past_due",
+        subject,
+        html,
+      });
+    }
     return;
   }
 
@@ -138,7 +181,28 @@ async function syncSubscription(supabase: ServiceClient, sub: Stripe.Subscriptio
     current_period_end: periodEnd.toISOString(),
     minimum_term_end: minimumTermEnd.toISOString(),
   });
-  if (error) console.error("syncSubscription insert failed:", error);
+  if (error) {
+    console.error("syncSubscription insert failed:", error);
+    return;
+  }
+
+  const { data: plan } = await supabase
+    .from("membership_plans")
+    .select("name, monthly_price_cents")
+    .eq("id", planId)
+    .maybeSingle();
+  if (plan) {
+    const { subject, html } = membershipActiveEmail({
+      planName: plan.name,
+      monthlyPriceCents: plan.monthly_price_cents,
+    });
+    await sendNotificationEmail({
+      customerId,
+      template: "membership_active",
+      subject,
+      html,
+    });
+  }
 }
 
 async function recordInvoicePayment(supabase: ServiceClient, invoiceStub: Stripe.Invoice) {
@@ -212,12 +276,41 @@ async function handlePaymentIntentSucceeded(
     .eq("id", payment.id);
   if (paymentError) console.error("handlePaymentIntentSucceeded payment update failed:", paymentError);
 
-  if (payment.booking_id) {
-    const { error: bookingError } = await supabase
-      .from("bookings")
-      .update({ status: "confirmed" })
-      .eq("id", payment.booking_id)
-      .eq("status", "pending");
-    if (bookingError) console.error("handlePaymentIntentSucceeded booking update failed:", bookingError);
-  }
+  if (!payment.booking_id) return;
+
+  // .eq("status", "pending") also acts as the "did this webhook actually
+  // cause the transition" guard -- .select() comes back empty on retries
+  // where the booking was already confirmed, so we don't double-send.
+  const { data: booking, error: bookingError } = await supabase
+    .from("bookings")
+    .update({ status: "confirmed" })
+    .eq("id", payment.booking_id)
+    .eq("status", "pending")
+    .select("service_type, scheduled_date, time_window, price_cents, customer_id, property_id")
+    .maybeSingle();
+  if (bookingError) console.error("handlePaymentIntentSucceeded booking update failed:", bookingError);
+  if (!booking) return;
+
+  const { data: property } = await supabase
+    .from("properties")
+    .select("address_line1, city")
+    .eq("id", booking.property_id)
+    .maybeSingle();
+  if (!property) return;
+
+  const { subject, html } = bookingConfirmedEmail({
+    serviceLabel: SERVICE_LABELS[booking.service_type] ?? booking.service_type,
+    addressLine: `${property.address_line1}, ${property.city}`,
+    scheduledDate: booking.scheduled_date,
+    windowLabel: WINDOW_LABELS[booking.time_window] ?? booking.time_window,
+    priceCents: booking.price_cents,
+    coveredByEntitlement: false,
+  });
+  await sendNotificationEmail({
+    customerId: booking.customer_id,
+    bookingId: payment.booking_id,
+    template: "booking_confirmed",
+    subject,
+    html,
+  });
 }

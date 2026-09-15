@@ -6,6 +6,9 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { getOrCreateStripeCustomerId } from "@/lib/stripe/customer";
 import { stripe } from "@/lib/stripe/server";
 import { entitlementPeriodFor, widestFrequency } from "@/lib/entitlements";
+import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
+import { sendNotificationEmail } from "@/lib/email/send";
+import { bookingConfirmedEmail } from "@/lib/email/templates";
 import type { Database } from "@/lib/supabase/database.types";
 
 export type BookingActionState = {
@@ -48,7 +51,7 @@ export async function createBookingAction(
 
   const { data: property } = await supabase
     .from("properties")
-    .select("id")
+    .select("id, address_line1, city")
     .eq("id", propertyId)
     .eq("customer_id", user.id)
     .maybeSingle();
@@ -168,7 +171,26 @@ export async function createBookingAction(
     return { error: bookingError?.message ?? "Couldn't create that booking." };
   }
 
+  async function sendBookingConfirmedEmail() {
+    const { subject, html } = bookingConfirmedEmail({
+      serviceLabel: SERVICE_LABELS[service!.service_type] ?? service!.service_type,
+      addressLine: `${property!.address_line1}, ${property!.city}`,
+      scheduledDate,
+      windowLabel: WINDOW_LABELS[timeWindow as Database["public"]["Enums"]["schedule_window"]] ?? timeWindow,
+      priceCents,
+      coveredByEntitlement,
+    });
+    await sendNotificationEmail({
+      customerId: user!.id,
+      bookingId: booking!.id,
+      template: "booking_confirmed",
+      subject,
+      html,
+    });
+  }
+
   if (coveredByEntitlement) {
+    await sendBookingConfirmedEmail();
     revalidatePath("/account");
     revalidatePath("/account/book");
     revalidatePath("/account/membership");
@@ -205,6 +227,9 @@ export async function createBookingAction(
     return { clientSecret: paymentIntent.client_secret };
   }
 
+  // priceCents === 0 and not entitlement-covered (e.g. a free service) --
+  // confirmed immediately, same as the entitlement-covered path above.
+  await sendBookingConfirmedEmail();
   revalidatePath("/account");
   revalidatePath("/account/book");
   revalidatePath("/account/membership");
