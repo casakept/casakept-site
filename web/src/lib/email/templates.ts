@@ -95,6 +95,30 @@ export function bookingReminderEmail(params: {
   };
 }
 
+export function bookingCancelledEmail(params: {
+  serviceLabel: string;
+  scheduledDate: string;
+  refunded: boolean;
+}): { subject: string; html: string } {
+  const { serviceLabel, scheduledDate, refunded } = params;
+  return {
+    subject: `Cancelled: ${serviceLabel} on ${formatDate(scheduledDate)}`,
+    html: emailLayout(
+      `Your ${serviceLabel.toLowerCase()} visit on ${formatDate(scheduledDate)} has been cancelled.`,
+      `
+      <h2 style="color:#1B3B31;margin:0 0 12px;">Visit cancelled</h2>
+      <p style="margin:0 0 20px;line-height:1.6;">
+        Your ${serviceLabel.toLowerCase()} visit scheduled for ${formatDate(scheduledDate)} has been cancelled.
+        ${refunded ? " Your payment has been refunded." : ""}
+      </p>
+      <a href="${SITE_URL}/account/book" style="display:inline-block;background:#E9A23B;color:#1B3B31;font-weight:700;padding:10px 22px;border-radius:99px;text-decoration:none;">
+        Book another visit
+      </a>
+      `
+    ),
+  };
+}
+
 export function bookingPaymentFailedEmail(params: {
   serviceLabel: string;
   scheduledDate: string;

@@ -8,8 +8,10 @@ import { stripe } from "@/lib/stripe/server";
 import { entitlementPeriodFor, widestFrequency } from "@/lib/entitlements";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import { sendNotificationEmail } from "@/lib/email/send";
-import { bookingConfirmedEmail } from "@/lib/email/templates";
+import { bookingConfirmedEmail, bookingCancelledEmail } from "@/lib/email/templates";
 import type { Database } from "@/lib/supabase/database.types";
+
+type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
 export type BookingActionState = {
   error?: string;
@@ -234,6 +236,111 @@ export async function createBookingAction(
   await sendBookingConfirmedEmail();
   revalidatePath("/account");
   revalidatePath("/account/book");
+  revalidatePath("/account/membership");
+  return { success: true };
+}
+
+// A booking already in progress or finished (or already cancelled) can't be
+// cancelled from the customer's side -- those are staff/admin-only states.
+const CANCELLABLE_STATUSES = new Set<BookingStatus>(["pending", "confirmed", "assigned"]);
+
+export async function cancelBookingAction(
+  bookingId: string,
+  currentStatus: BookingStatus,
+  _prevState: BookingActionState,
+  _formData: FormData
+): Promise<BookingActionState> {
+  if (!CANCELLABLE_STATUSES.has(currentStatus)) {
+    return { error: "This visit can no longer be cancelled." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in." };
+
+  // bookings_update_own RLS (customer_id = auth.uid()) is the real ownership
+  // gate here; .eq("status", currentStatus) guards against a stale client
+  // cancelling a booking staff/Stripe already moved on from.
+  const { data: booking, error: updateError } = await supabase
+    .from("bookings")
+    .update({ status: "cancelled" })
+    .eq("id", bookingId)
+    .eq("status", currentStatus)
+    .select("id, service_type, scheduled_date, subscription_id, covered_by_entitlement, price_cents, customer_id")
+    .maybeSingle();
+
+  if (updateError) return { error: updateError.message };
+  if (!booking) {
+    return { error: "This visit was already updated elsewhere. Refresh and try again." };
+  }
+
+  const serviceClient = createServiceClient();
+  let refunded = false;
+
+  if (booking.covered_by_entitlement && booking.subscription_id) {
+    // Give the claimed unit back. Identify the entitlement_usage row by
+    // period rather than by a stored id (none is kept on the booking) --
+    // the period that contains the visit's scheduled date is unambiguous.
+    const scheduledDateTime = `${booking.scheduled_date}T00:00:00.000Z`;
+    const { data: usageRow } = await serviceClient
+      .from("entitlement_usage")
+      .select("id, used_count")
+      .eq("subscription_id", booking.subscription_id)
+      .eq("service_type", booking.service_type)
+      .lte("billing_period_start", scheduledDateTime)
+      .gt("billing_period_end", scheduledDateTime)
+      .maybeSingle();
+
+    if (usageRow) {
+      await serviceClient
+        .from("entitlement_usage")
+        .update({ used_count: Math.max(0, usageRow.used_count - 1) })
+        .eq("id", usageRow.id);
+    }
+  } else if (booking.price_cents > 0) {
+    const { data: payment } = await serviceClient
+      .from("payments")
+      .select("id, status, stripe_payment_intent_id")
+      .eq("booking_id", booking.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (payment?.stripe_payment_intent_id) {
+      try {
+        if (payment.status === "succeeded") {
+          await stripe.refunds.create({ payment_intent: payment.stripe_payment_intent_id });
+          await serviceClient.from("payments").update({ status: "refunded" }).eq("id", payment.id);
+          refunded = true;
+        } else if (payment.status === "pending") {
+          // Nothing was ever charged -- just release the PaymentIntent.
+          await stripe.paymentIntents.cancel(payment.stripe_payment_intent_id);
+        }
+      } catch (err) {
+        // Don't fail the cancellation over a Stripe hiccup (e.g. the intent
+        // was already cancelled/captured) -- the booking is cancelled
+        // either way; this just logs for manual follow-up.
+        console.error("cancelBookingAction: Stripe cancel/refund failed", { bookingId, err });
+      }
+    }
+  }
+
+  const { subject, html } = bookingCancelledEmail({
+    serviceLabel: SERVICE_LABELS[booking.service_type] ?? booking.service_type,
+    scheduledDate: booking.scheduled_date,
+    refunded,
+  });
+  await sendNotificationEmail({
+    customerId: booking.customer_id,
+    bookingId: booking.id,
+    template: "booking_cancelled",
+    subject,
+    html,
+  });
+
+  revalidatePath("/account");
   revalidatePath("/account/membership");
   return { success: true };
 }

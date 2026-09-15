@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
+import BookingCard from "@/components/account/BookingCard";
 
 export const metadata: Metadata = {
   title: "My Account",
@@ -26,6 +26,7 @@ export default async function AccountOverviewPage() {
         .select("id, service_type, scheduled_date, time_window, status, properties(address_line1, city)")
         .eq("customer_id", user!.id)
         .gte("scheduled_date", new Date().toISOString().slice(0, 10))
+        .neq("status", "cancelled")
         .order("scheduled_date", { ascending: true })
         .limit(5),
       supabase
@@ -74,30 +75,7 @@ export default async function AccountOverviewPage() {
         ) : (
           <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
             {bookings.map((b) => (
-              <div className="card" key={b.id}>
-                <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-                  <div>
-                    <strong style={{ color: "var(--verde)" }}>
-                      {SERVICE_LABELS[b.service_type] ?? b.service_type}
-                    </strong>
-                    <p>
-                      {b.properties?.address_line1}, {b.properties?.city}
-                    </p>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <p style={{ fontWeight: 700, color: "var(--verde)" }}>
-                      {new Date(b.scheduled_date + "T00:00:00").toLocaleDateString(undefined, {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </p>
-                    <p>
-                      {WINDOW_LABELS[b.time_window] ?? b.time_window} · {b.status}
-                    </p>
-                  </div>
-                </div>
-              </div>
+              <BookingCard key={b.id} booking={b} />
             ))}
           </div>
         )}
