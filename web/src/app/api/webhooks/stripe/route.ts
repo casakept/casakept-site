@@ -291,6 +291,11 @@ async function handlePaymentIntentSucceeded(
   if (bookingError) console.error("handlePaymentIntentSucceeded booking update failed:", bookingError);
   if (!booking) return;
 
+  const { error: assignErr } = await supabase.rpc("assign_booking_staff", {
+    p_booking_id: payment.booking_id,
+  });
+  if (assignErr) console.error("assign_booking_staff failed:", assignErr);
+
   const { data: property } = await supabase
     .from("properties")
     .select("address_line1, city")

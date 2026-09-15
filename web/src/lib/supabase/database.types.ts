@@ -677,6 +677,12 @@ export type Database = {
           id: string
         }[]
       }
+      assign_booking_staff: {
+        Args: {
+          p_booking_id: string
+        }
+        Returns: string
+      }
       claim_entitlement_usage: {
         Args: {
           p_included_count: number

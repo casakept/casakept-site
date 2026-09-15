@@ -190,6 +190,7 @@ export async function createBookingAction(
   }
 
   if (coveredByEntitlement) {
+    await serviceClient.rpc("assign_booking_staff", { p_booking_id: booking.id });
     await sendBookingConfirmedEmail();
     revalidatePath("/account");
     revalidatePath("/account/book");
@@ -229,6 +230,7 @@ export async function createBookingAction(
 
   // priceCents === 0 and not entitlement-covered (e.g. a free service) --
   // confirmed immediately, same as the entitlement-covered path above.
+  await serviceClient.rpc("assign_booking_staff", { p_booking_id: booking.id });
   await sendBookingConfirmedEmail();
   revalidatePath("/account");
   revalidatePath("/account/book");
