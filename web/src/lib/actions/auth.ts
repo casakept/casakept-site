@@ -77,3 +77,33 @@ export async function signOutAction() {
   await supabase.auth.signOut();
   redirect("/");
 }
+
+// Used after an invite/recovery email link signs the user in via OTP
+// (see /auth/confirm) but before they have a real password set.
+export async function setPasswordAction(
+  _prevState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirm_password") ?? "");
+
+  if (password.length < 8) {
+    return { error: "Password must be at least 8 characters." };
+  }
+  if (password !== confirmPassword) {
+    return { error: "Passwords don't match." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Your invite link has expired. Ask an admin to resend it." };
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) return { error: error.message };
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  const next = profile?.role === "staff" ? "/staff" : profile?.role === "admin" ? "/admin" : "/account";
+  redirect(next);
+}
