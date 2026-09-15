@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { createPublicClient } from "@/lib/supabase/public";
 
 export const metadata: Metadata = {
   title: {
@@ -10,7 +11,14 @@ export const metadata: Metadata = {
     "Same-day cooked family dinners delivered to your fridge in Dallas–Fort Worth. Authentic Mexican and Hispanic home cooking — order by 11am, eat by 6pm. Tamales in season.",
 };
 
-export default function CocinaPage() {
+export default async function CocinaPage() {
+  const supabase = createPublicClient();
+  const { data: menuItems } = await supabase
+    .from("cocina_menu_items")
+    .select("id, dish_name, description")
+    .eq("active", true)
+    .order("sort_order", { ascending: true });
+
   return (
     <>
       <section className="section" style={{ textAlign: "center", paddingBottom: 40 }}>
@@ -40,86 +48,24 @@ export default function CocinaPage() {
               — This week from the cocina —
             </h2>
             <div style={{ marginTop: 18 }}>
-              <div className="pricerow">
-                <b
-                  style={{
-                    fontFamily: "var(--font-fraunces)",
-                    fontWeight: 600,
-                    fontSize: 18,
-                    color: "var(--verde)",
-                  }}
-                >
-                  Caldo de res
-                </b>
-                <div className="dots"></div>
-                <span style={{ fontWeight: 400, color: "#5a5245", fontSize: 13 }}>
-                  slow-simmered beef &amp; vegetables, arroz on the side
-                </span>
-              </div>
-              <div className="pricerow">
-                <b
-                  style={{
-                    fontFamily: "var(--font-fraunces)",
-                    fontWeight: 600,
-                    fontSize: 18,
-                    color: "var(--verde)",
-                  }}
-                >
-                  Enchiladas verdes
-                </b>
-                <div className="dots"></div>
-                <span style={{ fontWeight: 400, color: "#5a5245", fontSize: 13 }}>
-                  roasted tomatillo salsa, crema, frijoles de la olla
-                </span>
-              </div>
-              <div className="pricerow">
-                <b
-                  style={{
-                    fontFamily: "var(--font-fraunces)",
-                    fontWeight: 600,
-                    fontSize: 18,
-                    color: "var(--verde)",
-                  }}
-                >
-                  Pollo en mole
-                </b>
-                <div className="dots"></div>
-                <span style={{ fontWeight: 400, color: "#5a5245", fontSize: 13 }}>
-                  scratch-made mole, warm hand-made tortillas
-                </span>
-              </div>
-              <div className="pricerow">
-                <b
-                  style={{
-                    fontFamily: "var(--font-fraunces)",
-                    fontWeight: 600,
-                    fontSize: 18,
-                    color: "var(--verde)",
-                  }}
-                >
-                  Picadillo Tuesdays
-                </b>
-                <div className="dots"></div>
-                <span style={{ fontWeight: 400, color: "#5a5245", fontSize: 13 }}>
-                  weeknight family classic, kid-approved
-                </span>
-              </div>
-              <div className="pricerow">
-                <b
-                  style={{
-                    fontFamily: "var(--font-fraunces)",
-                    fontWeight: 600,
-                    fontSize: 18,
-                    color: "var(--verde)",
-                  }}
-                >
-                  Tamales by the dozen
-                </b>
-                <div className="dots"></div>
-                <span style={{ fontWeight: 400, color: "#5a5245", fontSize: 13 }}>
-                  seasonal — reserve early for the holidays
-                </span>
-              </div>
+              {(menuItems ?? []).map((item) => (
+                <div className="pricerow" key={item.id}>
+                  <b
+                    style={{
+                      fontFamily: "var(--font-fraunces)",
+                      fontWeight: 600,
+                      fontSize: 18,
+                      color: "var(--verde)",
+                    }}
+                  >
+                    {item.dish_name}
+                  </b>
+                  <div className="dots"></div>
+                  <span style={{ fontWeight: 400, color: "#5a5245", fontSize: 13 }}>
+                    {item.description}
+                  </span>
+                </div>
+              ))}
             </div>
             <p style={{ textAlign: "center", fontSize: 12, color: "#8a8375", marginTop: 16 }}>
               New menu posted every Sunday · custom portions &amp;

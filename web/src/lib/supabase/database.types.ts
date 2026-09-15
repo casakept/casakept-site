@@ -139,6 +139,36 @@ export type Database = {
           },
         ]
       }
+      cocina_menu_items: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string
+          dish_name: string
+          id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description: string
+          dish_name: string
+          id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string
+          dish_name?: string
+          id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       entitlement_usage: {
         Row: {
           billing_period_end: string
@@ -677,12 +707,7 @@ export type Database = {
           id: string
         }[]
       }
-      assign_booking_staff: {
-        Args: {
-          p_booking_id: string
-        }
-        Returns: string
-      }
+      assign_booking_staff: { Args: { p_booking_id: string }; Returns: string }
       claim_entitlement_usage: {
         Args: {
           p_included_count: number
