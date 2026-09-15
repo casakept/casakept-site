@@ -695,6 +695,73 @@ export type Database = {
           },
         ]
       }
+      visit_scores: {
+        Row: {
+          booking_id: string
+          created_at: string
+          customer_score: number
+          id: string
+          notes: string | null
+          professionalism_score: number
+          quality_score: number
+          scored_by: string
+          staff_id: string
+          timeliness_score: number
+          total_score: number | null
+          updated_at: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          customer_score: number
+          id?: string
+          notes?: string | null
+          professionalism_score: number
+          quality_score: number
+          scored_by: string
+          staff_id: string
+          timeliness_score: number
+          total_score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          customer_score?: number
+          id?: string
+          notes?: string | null
+          professionalism_score?: number
+          quality_score?: number
+          scored_by?: string
+          staff_id?: string
+          timeliness_score?: number
+          total_score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_scores_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_scores_scored_by_fkey"
+            columns: ["scored_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_scores_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
