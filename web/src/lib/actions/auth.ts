@@ -72,6 +72,30 @@ export async function signInAction(
   redirect(next);
 }
 
+// Sends a password reset email. The link routes through /auth/confirm
+// (type=recovery, filled in by the Supabase email template) which signs the
+// user in via OTP and lands them on /auth/set-password to choose a new one.
+export async function requestPasswordResetAction(
+  _prevState: AuthActionState,
+  formData: FormData
+): Promise<AuthActionState> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) {
+    return { error: "Enter your email address." };
+  }
+
+  const supabase = await createClient();
+  await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${siteUrl()}/auth/confirm?next=${encodeURIComponent("/auth/set-password")}`,
+  });
+
+  // Always return the same message, whether or not the email has an
+  // account, so this can't be used to enumerate registered emails.
+  return {
+    message: "If an account exists for that email, we've sent a link to reset your password.",
+  };
+}
+
 export async function signOutAction() {
   const supabase = await createClient();
   await supabase.auth.signOut();

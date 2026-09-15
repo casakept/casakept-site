@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { signInAction, type AuthActionState } from "@/lib/actions/auth";
 
@@ -33,6 +34,11 @@ export default function LoginForm({
           required
         />
       </div>
+      <p style={{ textAlign: "right", marginTop: -10, marginBottom: 18 }}>
+        <Link href="/forgot-password" style={{ fontSize: 13 }}>
+          Forgot password?
+        </Link>
+      </p>
       <button className="btn" type="submit" disabled={pending} style={{ width: "100%" }}>
         {pending ? "Logging in…" : "Log in"}
       </button>
