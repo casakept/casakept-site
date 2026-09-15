@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { SCORE_CATEGORIES } from "@/lib/visitScoring";
+import { SCORE_CATEGORIES, VISIT_SCORE_EVENTS, type VisitScoreEvent } from "@/lib/visitScoring";
 
 export type ScoreVisitActionState = {
   error?: string;
@@ -36,6 +36,12 @@ export async function scoreVisitAction(
   }
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
+  const eventTypeRaw = String(formData.get("event_type") ?? "none");
+  if (!VISIT_SCORE_EVENTS.some((e) => e.value === eventTypeRaw)) {
+    return { error: "Invalid score event." };
+  }
+  const eventType = eventTypeRaw as VisitScoreEvent;
+
   const { error } = await supabase.from("visit_scores").upsert(
     {
       booking_id: bookingId,
@@ -45,6 +51,7 @@ export async function scoreVisitAction(
       timeliness_score: scores.timeliness_score,
       professionalism_score: scores.professionalism_score,
       notes,
+      event_type: eventType,
       scored_by: user.id,
     },
     { onConflict: "booking_id" }

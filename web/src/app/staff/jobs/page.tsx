@@ -33,7 +33,7 @@ export default async function StaffJobsPage({ searchParams }: PageProps<"/staff/
   let query = supabase
     .from("bookings")
     .select(
-      "id, status, scheduled_date, time_window, service_type, notes, customer:profiles!bookings_customer_id_fkey(full_name, phone), property:properties(address_line1, city)"
+      "id, status, scheduled_date, time_window, service_type, notes, customer:profiles!bookings_customer_id_fkey(full_name, phone), property:properties(address_line1, city), checkin:visit_checkins(check_in_at, check_out_at)"
     )
     .eq("assigned_staff_id", user!.id)
     .order("scheduled_date", { ascending: filter !== "completed" });
@@ -67,7 +67,7 @@ export default async function StaffJobsPage({ searchParams }: PageProps<"/staff/
       ) : (
         <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
           {jobs.map((job) => (
-            <JobRow key={job.id} job={job as StaffJob} />
+            <JobRow key={job.id} job={job as StaffJob} staffId={user!.id} />
           ))}
         </div>
       )}

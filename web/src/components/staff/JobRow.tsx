@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { advanceBookingStatusAction, type StaffBookingActionState } from "@/lib/actions/staff-bookings";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
+import CheckInButton from "./CheckInButton";
 import type { Database } from "@/lib/supabase/database.types";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
@@ -16,6 +17,7 @@ export type StaffJob = {
   notes: string | null;
   customer: { full_name: string | null; phone: string | null } | null;
   property: { address_line1: string; city: string } | null;
+  checkin: { check_in_at: string | null; check_out_at: string | null } | null;
 };
 
 const NEXT_ACTION_LABEL: Partial<Record<BookingStatus, string>> = {
@@ -26,10 +28,11 @@ const NEXT_ACTION_LABEL: Partial<Record<BookingStatus, string>> = {
 
 const initialState: StaffBookingActionState = {};
 
-export default function JobRow({ job }: { job: StaffJob }) {
+export default function JobRow({ job, staffId }: { job: StaffJob; staffId: string }) {
   const action = advanceBookingStatusAction.bind(null, job.id, job.status);
   const [state, formAction, pending] = useActionState(action, initialState);
   const actionLabel = NEXT_ACTION_LABEL[job.status];
+  const showCheckins = job.status !== "cancelled";
 
   return (
     <div className="card">
@@ -71,6 +74,24 @@ export default function JobRow({ job }: { job: StaffJob }) {
             </span>
           )}
         </form>
+      )}
+
+      {showCheckins && (
+        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          {!job.checkin?.check_in_at && (
+            <CheckInButton bookingId={job.id} staffId={staffId} type="check_in" label="Check in" />
+          )}
+          {job.checkin?.check_in_at && !job.checkin?.check_out_at && (
+            <CheckInButton bookingId={job.id} staffId={staffId} type="check_out" label="Check out" />
+          )}
+          {job.checkin?.check_in_at && (
+            <span style={{ fontSize: 12, color: "#9aa49d" }}>
+              In: {new Date(job.checkin.check_in_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+              {job.checkin.check_out_at &&
+                ` · Out: ${new Date(job.checkin.check_out_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`}
+            </span>
+          )}
+        </div>
       )}
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { scoreVisitAction, type ScoreVisitActionState } from "@/lib/actions/admin-scores";
-import { SCORE_CATEGORIES } from "@/lib/visitScoring";
+import { SCORE_CATEGORIES, VISIT_SCORE_EVENTS } from "@/lib/visitScoring";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -21,8 +21,14 @@ export type ScorableBooking = {
     professionalism_score: number;
     total_score: number | null;
     notes: string | null;
+    event_type: Database["public"]["Enums"]["visit_score_event"];
   } | null;
+  visit_checkin: { check_in_at: string | null; check_out_at: string | null } | null;
 };
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
 
 const initialState: ScoreVisitActionState = {};
 
@@ -57,6 +63,13 @@ export default function ScoreBookingRow({ booking }: { booking: ScorableBooking 
         </div>
       </div>
 
+      {booking.visit_checkin?.check_in_at && (
+        <p style={{ fontSize: 12, color: "#9aa49d", marginTop: 6 }}>
+          Checked in: {formatTime(booking.visit_checkin.check_in_at)}
+          {booking.visit_checkin.check_out_at && ` · Checked out: ${formatTime(booking.visit_checkin.check_out_at)}`}
+        </p>
+      )}
+
       <form action={formAction} style={{ marginTop: 14 }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {SCORE_CATEGORIES.map((category) => (
@@ -75,6 +88,20 @@ export default function ScoreBookingRow({ booking }: { booking: ScorableBooking 
             </label>
           ))}
         </div>
+        <label style={{ display: "block", fontSize: 12, color: "#6a746c", marginTop: 10 }}>
+          Score event (forces bonus to $0 if not &quot;None&quot;)
+          <select
+            name="event_type"
+            defaultValue={score?.event_type ?? "none"}
+            style={{ display: "block", width: 220, marginTop: 4 }}
+          >
+            {VISIT_SCORE_EVENTS.map((e) => (
+              <option key={e.value} value={e.value}>
+                {e.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <label style={{ display: "block", fontSize: 12, color: "#6a746c", marginTop: 10 }}>
           Notes
           <textarea

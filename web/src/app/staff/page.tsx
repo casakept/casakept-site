@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
-import { bandForScore } from "@/lib/visitScoring";
+import { bonusForVisit, VISIT_SCORE_EVENTS } from "@/lib/visitScoring";
 
 export const metadata: Metadata = {
   title: "Staff · Overview",
@@ -63,7 +63,7 @@ export default async function StaffOverviewPage() {
         .limit(5),
       supabase
         .from("visit_scores")
-        .select("total_score, created_at, booking:bookings(service_type, scheduled_date)")
+        .select("total_score, event_type, created_at, booking:bookings(service_type, scheduled_date)")
         .eq("staff_id", user!.id)
         .order("created_at", { ascending: false })
         .limit(20),
@@ -81,7 +81,12 @@ export default async function StaffOverviewPage() {
           thisWeekScores.reduce((sum, s) => sum + (s.total_score ?? 0), 0) / thisWeekScores.length
         )
       : null;
-  const weekBand = weekAverage !== null ? bandForScore(weekAverage) : null;
+  // Bonus is paid per visit, so sum each visit's own band (event-overridden
+  // visits earn $0) rather than banding the average.
+  const weekBonusCents = thisWeekScores.reduce(
+    (sum, s) => sum + bonusForVisit(s.total_score ?? 0, s.event_type).bonusCentsPerVisit,
+    0
+  );
 
   return (
     <div>
@@ -145,19 +150,15 @@ export default async function StaffOverviewPage() {
 
       <div style={{ marginTop: 40 }}>
         <h3>My score</h3>
-        {weekAverage !== null && weekBand ? (
+        {weekAverage !== null ? (
           <div className="stat-row" style={{ marginTop: 14 }}>
             <div className="stat">
               <div className="n">{weekAverage}</div>
               <div className="l">Avg score this week</div>
             </div>
             <div className="stat">
-              <div className="n">{weekBand.label}</div>
-              <div className="l">Bonus band</div>
-            </div>
-            <div className="stat">
-              <div className="n">${(weekBand.bonusCentsPerVisit / 100).toFixed(0)}/visit</div>
-              <div className="l">Est. bonus (this week)</div>
+              <div className="n">${(weekBonusCents / 100).toFixed(0)}</div>
+              <div className="l">Est. bonus owed (this week)</div>
             </div>
           </div>
         ) : (
@@ -168,26 +169,35 @@ export default async function StaffOverviewPage() {
           <div style={{ marginTop: 20 }}>
             <p style={{ fontSize: 12, color: "#9aa49d", marginBottom: 8 }}>Recent scored visits</p>
             <div style={{ display: "grid", gap: 10 }}>
-              {recentScores.map((s, i) => (
-                <div className="card" key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                  <div>
-                    <strong style={{ color: "var(--verde)" }}>
-                      {s.booking ? SERVICE_LABELS[s.booking.service_type] ?? s.booking.service_type : "Visit"}
-                    </strong>
-                    <p>
-                      {s.booking &&
-                        new Date(s.booking.scheduled_date + "T00:00:00").toLocaleDateString(undefined, {
-                          weekday: "short",
-                          month: "short",
-                          day: "numeric",
-                        })}
-                    </p>
+              {recentScores.map((s, i) => {
+                const eventLabel =
+                  s.event_type !== "none"
+                    ? VISIT_SCORE_EVENTS.find((e) => e.value === s.event_type)?.label
+                    : null;
+                return (
+                  <div className="card" key={i} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                    <div>
+                      <strong style={{ color: "var(--verde)" }}>
+                        {s.booking ? SERVICE_LABELS[s.booking.service_type] ?? s.booking.service_type : "Visit"}
+                      </strong>
+                      <p>
+                        {s.booking &&
+                          new Date(s.booking.scheduled_date + "T00:00:00").toLocaleDateString(undefined, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                      </p>
+                      {eventLabel && (
+                        <p style={{ fontSize: 12, color: "#c0392b" }}>{eventLabel} · no bonus</p>
+                      )}
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <p style={{ fontWeight: 700, color: "var(--verde)" }}>{s.total_score}/100</p>
+                    </div>
                   </div>
-                  <div style={{ textAlign: "right" }}>
-                    <p style={{ fontWeight: 700, color: "var(--verde)" }}>{s.total_score}/100</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

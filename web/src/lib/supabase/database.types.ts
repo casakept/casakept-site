@@ -695,11 +695,69 @@ export type Database = {
           },
         ]
       }
+      visit_checkins: {
+        Row: {
+          booking_id: string
+          check_in_at: string | null
+          check_in_lat: number | null
+          check_in_lng: number | null
+          check_out_at: string | null
+          check_out_lat: number | null
+          check_out_lng: number | null
+          created_at: string
+          id: string
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          booking_id: string
+          check_in_at?: string | null
+          check_in_lat?: number | null
+          check_in_lng?: number | null
+          check_out_at?: string | null
+          check_out_lat?: number | null
+          check_out_lng?: number | null
+          created_at?: string
+          id?: string
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          booking_id?: string
+          check_in_at?: string | null
+          check_in_lat?: number | null
+          check_in_lng?: number | null
+          check_out_at?: string | null
+          check_out_lat?: number | null
+          check_out_lng?: number | null
+          created_at?: string
+          id?: string
+          staff_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_checkins_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_checkins_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       visit_scores: {
         Row: {
           booking_id: string
           created_at: string
           customer_score: number
+          event_type: Database["public"]["Enums"]["visit_score_event"]
           id: string
           notes: string | null
           professionalism_score: number
@@ -714,6 +772,7 @@ export type Database = {
           booking_id: string
           created_at?: string
           customer_score: number
+          event_type?: Database["public"]["Enums"]["visit_score_event"]
           id?: string
           notes?: string | null
           professionalism_score: number
@@ -728,6 +787,7 @@ export type Database = {
           booking_id?: string
           created_at?: string
           customer_score?: number
+          event_type?: Database["public"]["Enums"]["visit_score_event"]
           id?: string
           notes?: string | null
           professionalism_score?: number
@@ -835,6 +895,7 @@ export type Database = {
         | "errand"
       subscription_status: "active" | "paused" | "cancelled" | "past_due"
       user_role: "customer" | "staff" | "admin"
+      visit_score_event: "none" | "no_show" | "callback" | "safety_violation"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -993,6 +1054,7 @@ export const Constants = {
       ],
       subscription_status: ["active", "paused", "cancelled", "past_due"],
       user_role: ["customer", "staff", "admin"],
+      visit_score_event: ["none", "no_show", "callback", "safety_violation"],
     },
   },
 } as const
