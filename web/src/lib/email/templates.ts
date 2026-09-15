@@ -68,6 +68,33 @@ export function bookingConfirmedEmail(params: {
   };
 }
 
+export function bookingReminderEmail(params: {
+  serviceLabel: string;
+  addressLine: string;
+  scheduledDate: string;
+  windowLabel: string;
+}): { subject: string; html: string } {
+  const { serviceLabel, addressLine, scheduledDate, windowLabel } = params;
+
+  return {
+    subject: `Reminder: ${serviceLabel} tomorrow, ${formatDate(scheduledDate)}`,
+    html: emailLayout(
+      `Your ${serviceLabel.toLowerCase()} visit is tomorrow, ${formatDate(scheduledDate)}.`,
+      `
+      <h2 style="color:#1B3B31;margin:0 0 12px;">See you tomorrow</h2>
+      <p style="margin:0 0 20px;line-height:1.6;">Just a reminder about your upcoming visit:</p>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr><td style="padding:6px 0;color:#6a746c;">Service</td><td style="padding:6px 0;text-align:right;font-weight:700;">${serviceLabel}</td></tr>
+        <tr><td style="padding:6px 0;color:#6a746c;">Date</td><td style="padding:6px 0;text-align:right;font-weight:700;">${formatDate(scheduledDate)}</td></tr>
+        <tr><td style="padding:6px 0;color:#6a746c;">Window</td><td style="padding:6px 0;text-align:right;font-weight:700;">${windowLabel}</td></tr>
+        <tr><td style="padding:6px 0;color:#6a746c;">Address</td><td style="padding:6px 0;text-align:right;font-weight:700;">${addressLine}</td></tr>
+      </table>
+      <p style="margin:24px 0 0;line-height:1.6;">Need to reschedule? Manage it from your account.</p>
+      `
+    ),
+  };
+}
+
 export function bookingPaymentFailedEmail(params: {
   serviceLabel: string;
   scheduledDate: string;

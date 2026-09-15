@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 export type EmailTemplate =
   | "booking_confirmed"
   | "booking_payment_failed"
+  | "booking_reminder"
   | "membership_active"
   | "membership_past_due";
 
