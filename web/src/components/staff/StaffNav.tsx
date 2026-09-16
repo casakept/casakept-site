@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/staff", label: "Overview" },
   { href: "/staff/jobs", label: "My jobs" },
   { href: "/staff/availability", label: "Availability" },
+  { href: "/staff/bonuses", label: "My bonuses" },
 ];
 
 export default function StaffNav() {
