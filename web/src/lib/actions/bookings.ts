@@ -61,7 +61,7 @@ export async function createBookingAction(
 
   const { data: service } = await supabase
     .from("services")
-    .select("id, service_type, base_price_cents")
+    .select("id, service_type, base_price_cents, member_discount_pct")
     .eq("id", serviceId)
     .eq("active", true)
     .maybeSingle();
@@ -98,7 +98,11 @@ export async function createBookingAction(
   const serviceClient = createServiceClient();
 
   if (subscription) {
-    const discountPct = subscription.membership_plans?.extra_services_discount_pct ?? 0;
+    // Some services (e.g. laundry) carry their own member rate that's more
+    // generous than the plan's blanket discount -- take whichever is
+    // better for the member rather than always applying the flat rate.
+    const planDiscountPct = subscription.membership_plans?.extra_services_discount_pct ?? 0;
+    const discountPct = Math.max(planDiscountPct, service.member_discount_pct);
     priceCents = Math.round(priceCents * (1 - discountPct / 100));
 
     const { data: planEntitlements } = await supabase

@@ -12,6 +12,7 @@ type Service = {
   name: string;
   description: string | null;
   base_price_cents: number;
+  member_discount_pct: number;
 };
 type Entitlement = { service_type: string; quantity: number };
 type Usage = { service_type: string; used_count: number; included_count: number };
@@ -71,7 +72,10 @@ export default function BookingWizard({
     if (!selectedService) return 0;
     if (coverage && coverage.remaining > 0) return 0;
     if (hasSubscription) {
-      return Math.round(selectedService.base_price_cents * (1 - extraServicesDiscountPct / 100));
+      // Mirrors createBookingAction: some services carry their own member
+      // rate that's more generous than the plan's blanket discount.
+      const discountPct = Math.max(extraServicesDiscountPct, selectedService.member_discount_pct);
+      return Math.round(selectedService.base_price_cents * (1 - discountPct / 100));
     }
     return selectedService.base_price_cents;
   }, [selectedService, coverage, hasSubscription, extraServicesDiscountPct]);

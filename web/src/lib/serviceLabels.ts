@@ -20,3 +20,10 @@ export const WINDOW_LABELS: Record<Database["public"]["Enums"]["schedule_window"
   midday: "Midday",
   afternoon: "Afternoon",
 };
+
+export const FREQUENCY_LABELS: Record<Database["public"]["Enums"]["entitlement_frequency"], string> = {
+  weekly: "weekly",
+  biweekly: "every other week",
+  monthly: "monthly",
+  quarterly: "quarterly",
+};

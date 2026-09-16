@@ -485,6 +485,7 @@ export type Database = {
           minimum_term_months: number
           monthly_price_cents: number
           name: string
+          perks: string[]
           slug: string
           sort_order: number
           stripe_price_id: string | null
@@ -499,6 +500,7 @@ export type Database = {
           minimum_term_months?: number
           monthly_price_cents: number
           name: string
+          perks?: string[]
           slug: string
           sort_order?: number
           stripe_price_id?: string | null
@@ -513,6 +515,7 @@ export type Database = {
           minimum_term_months?: number
           monthly_price_cents?: number
           name?: string
+          perks?: string[]
           slug?: string
           sort_order?: number
           stripe_price_id?: string | null
@@ -761,6 +764,7 @@ export type Database = {
           member_discount_pct: number
           name: string
           service_type: Database["public"]["Enums"]["service_type"]
+          sort_order: number
           updated_at: string
         }
         Insert: {
@@ -773,6 +777,7 @@ export type Database = {
           member_discount_pct?: number
           name: string
           service_type: Database["public"]["Enums"]["service_type"]
+          sort_order?: number
           updated_at?: string
         }
         Update: {
@@ -785,6 +790,7 @@ export type Database = {
           member_discount_pct?: number
           name?: string
           service_type?: Database["public"]["Enums"]["service_type"]
+          sort_order?: number
           updated_at?: string
         }
         Relationships: []

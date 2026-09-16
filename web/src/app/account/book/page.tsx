@@ -22,7 +22,7 @@ export default async function BookPage() {
         .order("created_at", { ascending: true }),
       supabase
         .from("services")
-        .select("id, service_type, name, description, base_price_cents")
+        .select("id, service_type, name, description, base_price_cents, member_discount_pct")
         .eq("active", true)
         .order("name", { ascending: true }),
       supabase

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Services & What's Included",
@@ -7,7 +8,19 @@ export const metadata: Metadata = {
     "Exactly what's included in every CasaKept service: standard vs deep cleaning checklists, per-bag laundry, grocery delivery, fridge restock, Cocina meals, organization, and errands.",
 };
 
-export default function ServicesPage() {
+function formatCents(cents: number): string {
+  return `$${(cents / 100).toFixed(0)}`;
+}
+
+export default async function ServicesPage() {
+  const supabase = await createClient();
+  const { data: services } = await supabase
+    .from("services")
+    .select("service_type, base_price_cents")
+    .in("service_type", ["standard_clean", "deep_clean"]);
+  const standardPrice = services?.find((s) => s.service_type === "standard_clean")?.base_price_cents ?? 19900;
+  const deepPrice = services?.find((s) => s.service_type === "deep_clean")?.base_price_cents ?? 32500;
+
   return (
     <>
       <section className="section" style={{ paddingBottom: 36 }}>
@@ -31,7 +44,7 @@ export default function ServicesPage() {
           <h2>Home cleaning: Standard vs. Deep</h2>
           <div className="grid-2" style={{ marginTop: 24, alignItems: "start" }}>
             <div className="card">
-              <h3>Standard Clean — $199</h3>
+              <h3>Standard Clean — {formatCents(standardPrice)}</h3>
               <p
                 style={{
                   fontSize: 12,
@@ -67,7 +80,7 @@ export default function ServicesPage() {
               className="card"
               style={{ borderColor: "var(--verde)", boxShadow: "6px 6px 0 var(--sage)" }}
             >
-              <h3>Deep Clean — $325</h3>
+              <h3>Deep Clean — {formatCents(deepPrice)}</h3>
               <p
                 style={{
                   fontSize: 12,
