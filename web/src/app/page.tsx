@@ -1,12 +1,62 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { createPublicClient } from "@/lib/supabase/public";
 
 export const metadata: Metadata = {
   description:
     "CasaKept is your all-in-one home concierge in DFW: house cleaning, laundry with 48-hour turnaround, grocery delivery, home-cooked Mexican meals, and errands — one membership, one trusted local team.",
 };
 
-export default function HomePage() {
+// Pricing figures below are pulled live from membership_plans/services so
+// this page can't drift from what booking/billing actually charges (same
+// treatment as /pricing and /services) -- revalidated hourly rather than
+// on every request, since this is the highest-traffic page and an hour of
+// staleness on a price change is an acceptable tradeoff for not hitting
+// the DB on every load. Uses the anon-key public client (no cookies), not
+// the cookie-based server client -- reading cookies() would force this
+// route to render dynamically on every request regardless of the
+// revalidate setting, same reasoning as /cocina.
+export const revalidate = 3600;
+
+// Floor, not round -- half of $325 is $162.50, and whole-dollar display
+// should truncate down to $162, not round up to $163.
+function formatCents(cents: number): string {
+  return `$${Math.floor(cents / 100)}`;
+}
+
+export default async function HomePage() {
+  const supabase = createPublicClient();
+  const [{ data: plans }, { data: services }] = await Promise.all([
+    supabase
+      .from("membership_plans")
+      .select("slug, name, monthly_price_cents, extra_services_discount_pct")
+      .eq("active", true)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("services")
+      .select("service_type, name, base_price_cents, member_discount_pct")
+      .eq("active", true),
+  ]);
+
+  const planBySlug = Object.fromEntries((plans ?? []).map((p) => [p.slug, p]));
+  const base = planBySlug["casa-base"];
+  const familia = planBySlug["casa-familia"];
+  const completa = planBySlug["casa-completa"];
+
+  const standardClean = services?.find((s) => s.service_type === "standard_clean");
+  const deepClean = services?.find((s) => s.service_type === "deep_clean");
+  const laundry = services?.find((s) => s.service_type === "laundry");
+  const cocina = services?.find((s) => s.service_type === "cocina_meal");
+  const grocery = services?.find((s) => s.service_type === "grocery");
+  const organization = services?.find((s) => s.service_type === "organization");
+  const errand3Stops = services?.find((s) => s.service_type === "errand" && s.name === "Errands (3 stops)");
+  const errandWaitAtHome = services?.find((s) => s.service_type === "errand" && s.name === "Errands, wait-at-home");
+
+  const laundryMemberCents = laundry
+    ? Math.round(laundry.base_price_cents * (1 - laundry.member_discount_pct / 100))
+    : null;
+  const deepCleanHalfOff = deepClean ? deepClean.base_price_cents / 2 : null;
+
   return (
     <>
       <section className="wrap hero">
@@ -83,7 +133,8 @@ export default function HomePage() {
                 &amp; out.
               </p>
               <p className="price-line">
-                From $199 · included in every membership
+                {standardClean ? `From ${formatCents(standardClean.base_price_cents)}` : "From $199"} · included in
+                every membership
               </p>
             </div>
             <div className="card reveal">
@@ -93,7 +144,11 @@ export default function HomePage() {
                 own machine, folded drawer-ready, back in 24–48 hours —
                 guaranteed.
               </p>
-              <p className="price-line">$35/bag · $30 for members</p>
+              <p className="price-line">
+                {laundry && laundryMemberCents !== null
+                  ? `${formatCents(laundry.base_price_cents)}/bag · ${formatCents(laundryMemberCents)} for members`
+                  : "$35/bag · $30 for members"}
+              </p>
             </div>
             <div className="card reveal">
               <h3>Cocina meals</h3>
@@ -101,7 +156,9 @@ export default function HomePage() {
                 Same-day cooked family dinners with a specialty in authentic
                 Mexican home cooking. Order by 11am, eat by 6.
               </p>
-              <p className="price-line">Family dinner drops from $75</p>
+              <p className="price-line">
+                Family dinner drops from {cocina ? formatCents(cocina.base_price_cents) : "$75"}
+              </p>
             </div>
             <div className="card reveal">
               <h3>Groceries, handled</h3>
@@ -110,7 +167,8 @@ export default function HomePage() {
                 put away, receipt photo sent, groceries at actual cost.
               </p>
               <p className="price-line">
-                $45/run · included on Familia &amp; Completa
+                {grocery ? `${formatCents(grocery.base_price_cents)}/run` : "$45/run"} · included on Familia &amp;
+                Completa
               </p>
             </div>
             <div className="card reveal">
@@ -119,7 +177,12 @@ export default function HomePage() {
                 Pantries, closets, garages, playrooms — systems built for real
                 life, labeled so they survive it.
               </p>
-              <p className="price-line">$75/hr · members save 10–20%</p>
+              <p className="price-line">
+                {organization ? `${formatCents(organization.base_price_cents)}/hr` : "$75/hr"} · members save{" "}
+                {base && completa
+                  ? `${base.extra_services_discount_pct}–${completa.extra_services_discount_pct}%`
+                  : "10–20%"}
+              </p>
             </div>
             <div className="card reveal">
               <h3>Errands &amp; extras</h3>
@@ -128,7 +191,8 @@ export default function HomePage() {
                 tech, fridge cleanouts, filter changes.
               </p>
               <p className="price-line">
-                Errand runs $35 · wait-at-home $30/hr
+                Errand runs {errand3Stops ? formatCents(errand3Stops.base_price_cents) : "$35"} · wait-at-home{" "}
+                {errandWaitAtHome ? `${formatCents(errandWaitAtHome.base_price_cents)}/hr` : "$30/hr"}
               </p>
             </div>
           </div>
@@ -191,15 +255,19 @@ export default function HomePage() {
             <div className="tier reveal">
               <h3>Casa Base</h3>
               <div className="price">
-                $199<small>/mo</small>
+                {base ? formatCents(base.monthly_price_cents) : "$199"}
+                <small>/mo</small>
               </div>
               <div className="saves">
                 Your clean at the one-time price — perks free
               </div>
               <ul>
                 <li>1 standard clean per month</li>
-                <li>Member laundry rate: $30/bag</li>
-                <li>10% off all other services</li>
+                <li>
+                  Member laundry rate:{" "}
+                  {laundryMemberCents !== null ? `${formatCents(laundryMemberCents)}/bag` : "$30/bag"}
+                </li>
+                <li>{base ? base.extra_services_discount_pct : 10}% off all other services</li>
               </ul>
               <Link className="btn ghost" href="/pricing">
                 See details
@@ -209,14 +277,15 @@ export default function HomePage() {
               <span className="badge">Most popular</span>
               <h3>Casa Familia</h3>
               <div className="price">
-                $449<small>/mo</small>
+                {familia ? formatCents(familia.monthly_price_cents) : "$449"}
+                <small>/mo</small>
               </div>
               <div className="saves">Save ~25% + perks</div>
               <ul>
                 <li>Biweekly standard cleans</li>
                 <li>Biweekly grocery pickup + delivery</li>
                 <li>2 laundry bags/mo included</li>
-                <li>Monthly errand run + 15% off extras</li>
+                <li>Monthly errand run + {familia ? familia.extra_services_discount_pct : 15}% off extras</li>
               </ul>
               <Link className="btn" href="/book">
                 Join Casa Familia
@@ -225,14 +294,15 @@ export default function HomePage() {
             <div className="tier reveal">
               <h3>Casa Completa</h3>
               <div className="price">
-                $949<small>/mo</small>
+                {completa ? formatCents(completa.monthly_price_cents) : "$949"}
+                <small>/mo</small>
               </div>
               <div className="saves">Save ~40% vs one-time</div>
               <ul>
                 <li>Weekly cleans, laundry &amp; groceries</li>
                 <li>Fridge cleanout every other week</li>
                 <li>2 Cocina meal drops + quarterly deep clean</li>
-                <li>Dedicated household manager + 20% off</li>
+                <li>Dedicated household manager + {completa ? completa.extra_services_discount_pct : 20}% off</li>
               </ul>
               <Link className="btn ghost" href="/pricing">
                 See details
@@ -248,8 +318,10 @@ export default function HomePage() {
             <div>
               <h3>New members: first deep clean 50% off</h3>
               <p>
-                Every membership starts with a top-to-bottom reset so your
-                recurring visits stay flawless. $325 → $162 at signup.
+                Every membership starts with a top-to-bottom reset so your recurring visits stay flawless.{" "}
+                {deepClean && deepCleanHalfOff !== null
+                  ? `${formatCents(deepClean.base_price_cents)} → ${formatCents(deepCleanHalfOff)} at signup.`
+                  : "$325 → $162 at signup."}
               </p>
             </div>
             <Link

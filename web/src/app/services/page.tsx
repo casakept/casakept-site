@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 
 export const metadata: Metadata = {
   title: "Services & What's Included",
@@ -8,12 +8,16 @@ export const metadata: Metadata = {
     "Exactly what's included in every CasaKept service: standard vs deep cleaning checklists, per-bag laundry, grocery delivery, fridge restock, Cocina meals, organization, and errands.",
 };
 
+// Public catalog data -- revalidated hourly via the anon-key public client
+// rather than fetched on every request, same reasoning as / and /pricing.
+export const revalidate = 3600;
+
 function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(0)}`;
 }
 
 export default async function ServicesPage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data: services } = await supabase
     .from("services")
     .select("service_type, base_price_cents")

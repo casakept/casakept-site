@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import { SERVICE_LABELS, FREQUENCY_LABELS } from "@/lib/serviceLabels";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -9,6 +9,12 @@ export const metadata: Metadata = {
   description:
     "CasaKept membership pricing: Casa Base $199/mo, Casa Familia $449/mo, Casa Completa $949/mo. One-time cleaning, laundry, grocery, and meal pricing for Dallas–Fort Worth.",
 };
+
+// Public catalog data, no per-user auth dependency -- revalidated hourly
+// via the anon-key public client (not the cookie-based server client, which
+// would force this route dynamic on every request) rather than fetched on
+// every request, same reasoning as / and /cocina.
+export const revalidate = 3600;
 
 const SERVICE_TYPE_ORDER = Object.keys(SERVICE_LABELS) as Database["public"]["Enums"]["service_type"][];
 
@@ -19,7 +25,7 @@ function formatCents(cents: number): string {
 }
 
 export default async function PricingPage() {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
 
   const [{ data: plans }, { data: services }] = await Promise.all([
     supabase
