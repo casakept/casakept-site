@@ -796,6 +796,7 @@ export type Database = {
           created_at: string
           hire_date: string
           id: string
+          referred_by_staff_id: string | null
           updated_at: string
         }
         Insert: {
@@ -804,6 +805,7 @@ export type Database = {
           created_at?: string
           hire_date?: string
           id: string
+          referred_by_staff_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -812,6 +814,7 @@ export type Database = {
           created_at?: string
           hire_date?: string
           id?: string
+          referred_by_staff_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -820,6 +823,13 @@ export type Database = {
             columns: ["id"]
             isOneToOne: true
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_referred_by_staff_id_fkey"
+            columns: ["referred_by_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
             referencedColumns: ["id"]
           },
         ]
@@ -852,6 +862,57 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "staff_availability_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_bonuses: {
+        Row: {
+          amount_cents: number
+          bonus_type: Database["public"]["Enums"]["staff_bonus_type"]
+          computed_at: string
+          id: string
+          paid: boolean
+          paid_at: string | null
+          period_label: string | null
+          related_staff_id: string | null
+          staff_id: string
+        }
+        Insert: {
+          amount_cents: number
+          bonus_type: Database["public"]["Enums"]["staff_bonus_type"]
+          computed_at?: string
+          id?: string
+          paid?: boolean
+          paid_at?: string | null
+          period_label?: string | null
+          related_staff_id?: string | null
+          staff_id: string
+        }
+        Update: {
+          amount_cents?: number
+          bonus_type?: Database["public"]["Enums"]["staff_bonus_type"]
+          computed_at?: string
+          id?: string
+          paid?: boolean
+          paid_at?: string | null
+          period_label?: string | null
+          related_staff_id?: string | null
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_bonuses_related_staff_id_fkey"
+            columns: ["related_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_bonuses_staff_id_fkey"
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
@@ -1215,6 +1276,7 @@ export type Database = {
         | "fridge_restock"
         | "cocina_meal"
         | "errand"
+      staff_bonus_type: "90_day" | "anniversary" | "household_retention" | "crew_of_month" | "referral"
       subscription_status: "active" | "paused" | "cancelled" | "past_due"
       user_role: "customer" | "staff" | "admin"
       visit_score_event: "none" | "no_show" | "callback" | "safety_violation"

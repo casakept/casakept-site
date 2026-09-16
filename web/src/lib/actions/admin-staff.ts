@@ -46,6 +46,7 @@ export async function inviteStaffAction(
 
   const fullName = String(formData.get("full_name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
+  const referredByStaffId = String(formData.get("referred_by_staff_id") ?? "") || null;
   if (!fullName || !email) return { error: "Name and email are required." };
 
   const serviceClient = createServiceClient();
@@ -79,7 +80,9 @@ export async function inviteStaffAction(
     .eq("id", newUserId);
   if (roleErr) return { error: roleErr.message };
 
-  const { error: staffErr } = await supabase.from("staff").insert({ id: newUserId, active: true });
+  const { error: staffErr } = await supabase
+    .from("staff")
+    .insert({ id: newUserId, active: true, referred_by_staff_id: referredByStaffId });
   if (staffErr) return { error: staffErr.message };
 
   revalidatePath("/admin/staff");

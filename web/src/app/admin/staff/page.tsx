@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import InviteStaffForm from "@/components/admin/InviteStaffForm";
+import InviteStaffForm, { type ReferrableStaff } from "@/components/admin/InviteStaffForm";
 import StaffRow, { type AdminStaffMember } from "@/components/admin/StaffRow";
 
 export const metadata: Metadata = {
@@ -15,6 +15,10 @@ export default async function AdminStaffPage() {
     .select("id, active, hire_date, profile:profiles!staff_id_fkey(full_name, email, phone)")
     .order("active", { ascending: false });
 
+  const existingStaff: ReferrableStaff[] = (staff ?? [])
+    .filter((s) => s.active)
+    .map((s) => ({ id: s.id, full_name: s.profile?.full_name ?? null }));
+
   return (
     <div>
       <h3>Invite a staff member</h3>
@@ -22,7 +26,7 @@ export default async function AdminStaffPage() {
         They&apos;ll get an email to set their password and get access to the staff portal.
       </p>
       <div className="card">
-        <InviteStaffForm />
+        <InviteStaffForm existingStaff={existingStaff} />
       </div>
 
       <div style={{ marginTop: 40 }}>
