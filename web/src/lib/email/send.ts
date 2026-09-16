@@ -7,7 +7,8 @@ export type EmailTemplate =
   | "booking_reminder"
   | "booking_cancelled"
   | "membership_active"
-  | "membership_past_due";
+  | "membership_past_due"
+  | "csat_survey";
 
 type SendNotificationEmailParams = {
   customerId: string;

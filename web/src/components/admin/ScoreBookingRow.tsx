@@ -31,6 +31,7 @@ export type ScorableBooking = {
     photo_url: string | null;
     item: { name: string } | null;
   }[];
+  csat: { rating: number | null; comment: string | null; responded_at: string | null } | null;
 };
 
 function formatTime(iso: string): string {
@@ -101,6 +102,15 @@ export default function ScoreBookingRow({ booking }: { booking: ScorableBooking 
                 ))}
             </div>
           )}
+        </div>
+      )}
+
+      {booking.csat?.responded_at && (
+        <div style={{ marginTop: 10 }}>
+          <p style={{ fontSize: 12, color: "#9aa49d" }}>
+            CSAT: {booking.csat.rating}/5 -- evidence for your Customer score below, not an automatic calculation.
+            {booking.csat.comment && ` "${booking.csat.comment}"`}
+          </p>
         </div>
       )}
 

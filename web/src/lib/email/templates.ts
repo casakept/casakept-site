@@ -142,6 +142,31 @@ export function bookingPaymentFailedEmail(params: {
   };
 }
 
+export function csatSurveyEmail(params: {
+  serviceLabel: string;
+  scheduledDate: string;
+  token: string;
+}): { subject: string; html: string } {
+  const { serviceLabel, scheduledDate, token } = params;
+  const surveyUrl = `${SITE_URL}/survey/${token}`;
+  return {
+    subject: `How was your ${serviceLabel.toLowerCase()} visit?`,
+    html: emailLayout(
+      `Rate your ${formatDate(scheduledDate)} visit -- it takes 10 seconds.`,
+      `
+      <h2 style="color:#1B3B31;margin:0 0 12px;">How did we do?</h2>
+      <p style="margin:0 0 20px;line-height:1.6;">
+        Your ${serviceLabel.toLowerCase()} visit on ${formatDate(scheduledDate)} is complete. We'd love to
+        know how it went -- it only takes a moment.
+      </p>
+      <a href="${surveyUrl}" style="display:inline-block;background:#E9A23B;color:#1B3B31;font-weight:700;padding:10px 22px;border-radius:99px;text-decoration:none;">
+        Rate your visit
+      </a>
+      `
+    ),
+  };
+}
+
 export function membershipActiveEmail(params: {
   planName: string;
   monthlyPriceCents: number;

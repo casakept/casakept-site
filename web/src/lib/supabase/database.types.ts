@@ -199,6 +199,54 @@ export type Database = {
         }
         Relationships: []
       }
+      csat_responses: {
+        Row: {
+          booking_id: string
+          comment: string | null
+          customer_id: string
+          id: string
+          rating: number | null
+          responded_at: string | null
+          sent_at: string
+          token: string
+        }
+        Insert: {
+          booking_id: string
+          comment?: string | null
+          customer_id: string
+          id?: string
+          rating?: number | null
+          responded_at?: string | null
+          sent_at?: string
+          token: string
+        }
+        Update: {
+          booking_id?: string
+          comment?: string | null
+          customer_id?: string
+          id?: string
+          rating?: number | null
+          responded_at?: string | null
+          sent_at?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "csat_responses_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "csat_responses_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       entitlement_usage: {
         Row: {
           billing_period_end: string
