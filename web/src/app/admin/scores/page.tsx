@@ -18,7 +18,7 @@ export default async function AdminScoresPage() {
        customer:profiles!bookings_customer_id_fkey(full_name),
        visit_score:visit_scores(quality_score, customer_score, timeliness_score, professionalism_score, total_score, notes, event_type),
        visit_checkin:visit_checkins(check_in_at, check_out_at),
-       checklist:visit_checklist_entries(completed, photo_path, item:checklist_items(name)),
+       checklist:visit_checklist_entries(completed, photo_path, item:checklist_items(name, rotation_zone)),
        csat:csat_responses(rating, comment, responded_at)`
     )
     .eq("status", "completed")

@@ -40,10 +40,12 @@ export default function JobRow({
   job,
   staffId,
   checklistItems,
+  rotationZone,
 }: {
   job: StaffJob;
   staffId: string;
   checklistItems: ChecklistCatalogItem[];
+  rotationZone?: "kitchen_bath" | "bed_living" | null;
 }) {
   const action = advanceBookingStatusAction.bind(null, job.id, job.status);
   const [state, formAction, pending] = useActionState(action, initialState);
@@ -118,6 +120,7 @@ export default function JobRow({
           items={checklistItems}
           entries={job.checklist}
           isDeepClean={DEEP_CLEAN_SERVICE_TYPES.includes(job.service_type)}
+          rotationZone={rotationZone}
         />
       )}
     </div>

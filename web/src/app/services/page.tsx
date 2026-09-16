@@ -79,6 +79,18 @@ export default async function ServicesPage() {
                 <li>Sinks, counters, fixtures &amp; mirrors shined</li>
                 <li>Floors sanitized</li>
               </ul>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: "#7a8078",
+                  fontStyle: "italic",
+                  marginTop: 12,
+                }}
+              >
+                Every recurring visit also rotates in a detail zone — kitchen &amp; bathrooms on one visit, living
+                &amp; sleeping areas the next — so oven, fridge, baseboards, and windows never go too long without
+                attention, even between deep cleans.
+              </p>
             </div>
             <div
               className="card"

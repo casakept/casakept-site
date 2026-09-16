@@ -147,6 +147,7 @@ export type Database = {
           id: string
           name: string
           requires_photo: boolean
+          rotation_zone: string | null
           sort_order: number
         }
         Insert: {
@@ -156,6 +157,7 @@ export type Database = {
           id?: string
           name: string
           requires_photo?: boolean
+          rotation_zone?: string | null
           sort_order?: number
         }
         Update: {
@@ -165,6 +167,7 @@ export type Database = {
           id?: string
           name?: string
           requires_photo?: boolean
+          rotation_zone?: string | null
           sort_order?: number
         }
         Relationships: []

@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { scoreVisitAction, type ScoreVisitActionState } from "@/lib/actions/admin-scores";
 import { SCORE_CATEGORIES, VISIT_SCORE_EVENTS } from "@/lib/visitScoring";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
+import { ROTATION_ZONE_LABELS, type RotationZone } from "@/components/staff/ChecklistSection";
 import type { Database } from "@/lib/supabase/database.types";
 
 export type ScorableBooking = {
@@ -29,7 +30,7 @@ export type ScorableBooking = {
     completed: boolean;
     photo_path: string | null;
     photo_url: string | null;
-    item: { name: string } | null;
+    item: { name: string; rotation_zone: string | null } | null;
   }[];
   csat: { rating: number | null; comment: string | null; responded_at: string | null } | null;
 };
@@ -44,6 +45,11 @@ export default function ScoreBookingRow({ booking }: { booking: ScorableBooking 
   const action = scoreVisitAction.bind(null, booking.id, booking.assigned_staff_id);
   const [state, formAction, pending] = useActionState(action, initialState);
   const score = booking.visit_score;
+  // Standard Clean rotation: any entry whose item carries a rotation_zone
+  // tells us which zone applied to this visit (see ChecklistSection.tsx).
+  const rotationZone = booking.checklist.find((c) => c.item?.rotation_zone)?.item?.rotation_zone as
+    | RotationZone
+    | undefined;
 
   return (
     <div className="card">
@@ -83,6 +89,7 @@ export default function ScoreBookingRow({ booking }: { booking: ScorableBooking 
           <p style={{ fontSize: 12, color: "#9aa49d" }}>
             Checklist: {booking.checklist.filter((c) => c.completed).length}/{booking.checklist.length} completed
             -- evidence for your Quality score below, not an automatic calculation.
+            {rotationZone && ` Detail zone: ${ROTATION_ZONE_LABELS[rotationZone]}.`}
           </p>
           {booking.checklist.some((c) => c.photo_url) && (
             <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
