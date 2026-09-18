@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 // the DB on every load. Uses the anon-key public client (no cookies), not
 // the cookie-based server client -- reading cookies() would force this
 // route to render dynamically on every request regardless of the
-// revalidate setting, same reasoning as /cocina.
+// revalidate setting, same reasoning as /pricing.
 export const revalidate = 3600;
 
 // Floor, not round -- half of $325 is $162.50, and whole-dollar display

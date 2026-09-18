@@ -17,8 +17,8 @@ export type EstimateActionState = {
 };
 
 // No explicit role check -- estimates_all_admin RLS policy is the real
-// gate, same pattern as the other admin write actions (admin-cocina.ts,
-// admin-scores.ts). A non-admin session hitting this would be rejected by
+// gate, same pattern as the other admin write actions (admin-scores.ts).
+// A non-admin session hitting this would be rejected by
 // RLS on the insert.
 export async function createEstimateAction(
   _prevState: EstimateActionState,

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 // Public catalog data, no per-user auth dependency -- revalidated hourly
 // via the anon-key public client (not the cookie-based server client, which
 // would force this route dynamic on every request) rather than fetched on
-// every request, same reasoning as / and /cocina.
+// every request, same reasoning as /.
 export const revalidate = 3600;
 
 const SERVICE_TYPE_ORDER = Object.keys(SERVICE_LABELS) as Database["public"]["Enums"]["service_type"][];

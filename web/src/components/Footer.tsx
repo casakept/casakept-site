@@ -1,11 +1,6 @@
-"use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 export default function Footer() {
-  const isCocina = usePathname() === "/cocina";
-
   return (
     <footer className="site-footer">
       <div className="wrap foot-grid">
@@ -19,7 +14,7 @@ export default function Footer() {
           </p>
           <p style={{ marginTop: 12 }}>
             <strong style={{ color: "var(--paper)" }}>
-              Text &quot;{isCocina ? "CENA" : "DONE"}&quot; to (817) 555-0142
+              Text &quot;DONE&quot; to (817) 555-0142
             </strong>
             <br />
             hola@casakept.com
@@ -33,9 +28,6 @@ export default function Footer() {
             </li>
             <li>
               <Link href="/pricing">Memberships &amp; pricing</Link>
-            </li>
-            <li>
-              <Link href="/cocina">Cocina weekly menu</Link>
             </li>
             <li>
               <Link href="/book">Book a visit</Link>
@@ -52,16 +44,8 @@ export default function Footer() {
         </div>
       </div>
       <div className="wrap fineprint">
-        <span>
-          © 2026 CasaKept LLC ·{" "}
-          {isCocina ? "Made in a licensed kitchen" : "Licensed & insured"} · Se
-          habla español
-        </span>
-        <span>
-          {isCocina
-            ? "Menus rotate weekly · Prices subject to change"
-            : "Memberships require a three-month minimum · Prices subject to change"}
-        </span>
+        <span>© 2026 CasaKept LLC · Licensed &amp; insured · Se habla español</span>
+        <span>Memberships require a three-month minimum · Prices subject to change</span>
       </div>
     </footer>
   );

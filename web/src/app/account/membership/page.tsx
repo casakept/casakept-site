@@ -15,7 +15,6 @@ const SERVICE_LABELS: Record<string, string> = {
   laundry: "Laundry bag",
   grocery: "Grocery run",
   fridge_restock: "Fridge restock",
-  cocina_meal: "Cocina meal drop",
   errand: "Errand",
 };
 
