@@ -109,9 +109,21 @@ export default function BookingWizard({
         <p style={{ marginTop: 8 }}>
           We&apos;ll see you {scheduledDate} in the {WINDOW_LABELS[timeWindow]?.toLowerCase()}.
         </p>
-        <Link className="btn" href="/account" style={{ marginTop: 16, display: "inline-block" }}>
-          Back to dashboard
-        </Link>
+        <p style={{ marginTop: 6, fontSize: 13, color: "#6a746c" }}>
+          Need something else too? Booking each visit separately only takes a moment.
+        </p>
+        <div style={{ display: "flex", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
+          {/* Plain <a>, not <Link> -- this points at the same route the
+              wizard is already on, so Next's client-side navigation would
+              just no-op and leave the "Visit booked" state on screen. A
+              full navigation is what actually remounts the form fresh. */}
+          <a className="btn" href="/account/book">
+            Book another visit
+          </a>
+          <Link className="btn ghost" href="/account">
+            Back to dashboard
+          </Link>
+        </div>
       </div>
     );
   }
@@ -175,6 +187,10 @@ export default function BookingWizard({
 
       {step === 2 && (
         <div style={{ marginTop: 8 }}>
+          <p style={{ fontSize: 13, color: "#6a746c", marginBottom: 16 }}>
+            Pick one service per visit. Want more than one? Book this one first -- you&apos;ll get a one-click
+            option to add another visit right after.
+          </p>
           {servicesByCategory.map((group) => (
             <div key={group.label} style={{ marginBottom: 24 }}>
               <p className="room">{group.label}</p>
@@ -288,6 +304,7 @@ export default function BookingWizard({
             <textarea
               id="notes"
               rows={3}
+              placeholder="Ex. Specific area that needs attention"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             ></textarea>
