@@ -4,6 +4,8 @@ import { useActionState, useMemo, useState } from "react";
 import Link from "next/link";
 import { createBookingAction, type BookingActionState } from "@/lib/actions/bookings";
 import { StripePaymentForm } from "@/components/stripe/PaymentForm";
+import ServiceDetailModal from "@/components/account/ServiceDetailModal";
+import { SERVICE_CATEGORIES } from "@/lib/serviceCategories";
 
 type Property = { id: string; label: string | null; address_line1: string; city: string };
 type Service = {
@@ -54,6 +56,14 @@ export default function BookingWizard({
   const [timeWindow, setTimeWindow] = useState("");
   const [preferredStaffId, setPreferredStaffId] = useState("");
   const [notes, setNotes] = useState("");
+  const [detailService, setDetailService] = useState<Service | null>(null);
+
+  const servicesByCategory = useMemo(() => {
+    return SERVICE_CATEGORIES.map((category) => ({
+      label: category.label,
+      services: services.filter((s) => (category.types as string[]).includes(s.service_type)),
+    })).filter((group) => group.services.length > 0);
+  }, [services]);
 
   const selectedService = services.find((s) => s.id === serviceId) ?? null;
   const isCleaning = selectedService ? CLEANING_SERVICE_TYPES.has(selectedService.service_type) : false;
@@ -124,6 +134,7 @@ export default function BookingWizard({
   }
 
   return (
+    <>
     <form action={formAction}>
       <input type="hidden" name="property_id" value={propertyId} />
       <input type="hidden" name="service_id" value={serviceId} />
@@ -163,18 +174,36 @@ export default function BookingWizard({
       )}
 
       {step === 2 && (
-        <div className="option-grid">
-          {services.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className={`option-card${serviceId === s.id ? " selected" : ""}`}
-              onClick={() => setServiceId(s.id)}
-            >
-              <div className="t">{s.name}</div>
-              {s.description && <div className="d">{s.description}</div>}
-              <div className="p">${(s.base_price_cents / 100).toFixed(0)}</div>
-            </button>
+        <div style={{ marginTop: 8 }}>
+          {servicesByCategory.map((group) => (
+            <div key={group.label} style={{ marginBottom: 24 }}>
+              <p className="room">{group.label}</p>
+              <div className="option-grid">
+                {group.services.map((s) => (
+                  <div key={s.id} className="option-card-wrap">
+                    <button
+                      type="button"
+                      className={`option-card${serviceId === s.id ? " selected" : ""}`}
+                      onClick={() => setServiceId(s.id)}
+                    >
+                      <div className="t">{s.name}</div>
+                      {s.description && <div className="d">{s.description}</div>}
+                      <div className="p">${(s.base_price_cents / 100).toFixed(0)}</div>
+                    </button>
+                    <button
+                      type="button"
+                      className="option-details-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDetailService(s);
+                      }}
+                    >
+                      See full details
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -293,5 +322,7 @@ export default function BookingWizard({
         </div>
       )}
     </form>
+    {detailService && <ServiceDetailModal service={detailService} onClose={() => setDetailService(null)} />}
+    </>
   );
 }

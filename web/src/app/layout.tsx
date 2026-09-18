@@ -27,11 +27,11 @@ const caveat = Caveat({
 export const metadata: Metadata = {
   title: {
     default:
-      "CasaKept — Home Concierge in Dallas–Fort Worth | Cleaning, Laundry, Groceries & Meals",
+      "CasaKept — Home Concierge in Dallas–Fort Worth | Cleaning, Laundry & Groceries",
     template: "%s — CasaKept | DFW Home Concierge",
   },
   description:
-    "CasaKept is your all-in-one home concierge in DFW: house cleaning, laundry with 48-hour turnaround, grocery delivery, home-cooked Mexican meals, and errands — one membership, one trusted local team.",
+    "CasaKept is your all-in-one home concierge in DFW: house cleaning, laundry with 48-hour turnaround, grocery delivery, and errands — one membership, one trusted local team.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

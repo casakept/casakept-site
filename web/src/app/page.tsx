@@ -4,7 +4,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 
 export const metadata: Metadata = {
   description:
-    "CasaKept is your all-in-one home concierge in DFW: house cleaning, laundry with 48-hour turnaround, grocery delivery, home-cooked Mexican meals, and errands — one membership, one trusted local team.",
+    "CasaKept is your all-in-one home concierge in DFW: house cleaning, laundry with 48-hour turnaround, grocery delivery, and errands — one membership, one trusted local team.",
 };
 
 // Pricing figures below are pulled live from membership_plans/services so
@@ -46,16 +46,15 @@ export default async function HomePage() {
   const standardClean = services?.find((s) => s.service_type === "standard_clean");
   const deepClean = services?.find((s) => s.service_type === "deep_clean");
   const laundry = services?.find((s) => s.service_type === "laundry");
-  const cocina = services?.find((s) => s.service_type === "cocina_meal");
   const grocery = services?.find((s) => s.service_type === "grocery");
   const organization = services?.find((s) => s.service_type === "organization");
-  const errand3Stops = services?.find((s) => s.service_type === "errand" && s.name === "Errands (3 stops)");
-  const errandWaitAtHome = services?.find((s) => s.service_type === "errand" && s.name === "Errands, wait-at-home");
+  const errand3Stops = services?.find((s) => s.service_type === "errand" && s.name === "Errands - To Go");
+  const errandWaitAtHome = services?.find((s) => s.service_type === "errand" && s.name === "Errands - Wait at Home");
 
   const laundryMemberCents = laundry
     ? Math.round(laundry.base_price_cents * (1 - laundry.member_discount_pct / 100))
     : null;
-  const deepCleanHalfOff = deepClean ? deepClean.base_price_cents / 2 : null;
+  const deepCleanDiscounted = deepClean ? deepClean.base_price_cents * 0.85 : null;
 
   return (
     <>
@@ -70,7 +69,7 @@ export default async function HomePage() {
           <p className="lede" style={{ marginTop: 18 }}>
             CasaKept is your all-in-one home concierge, designed to give you
             back your time. One membership, one app, one trusted local team
-            for cleaning, laundry, groceries, dinner, and the errands in
+            for cleaning, laundry, groceries, and the errands in
             between.
           </p>
           <div
@@ -108,7 +107,7 @@ export default async function HomePage() {
               <span className="box">✓</span> Return the Amazon boxes
             </li>
             <li className="done">
-              <span className="box">✓</span> Cook dinner
+              <span className="box">✓</span> Organize the closets
             </li>
             <li className="you">
               <span className="box"></span> The soccer game
@@ -148,16 +147,6 @@ export default async function HomePage() {
                 {laundry && laundryMemberCents !== null
                   ? `${formatCents(laundry.base_price_cents)}/bag · ${formatCents(laundryMemberCents)} for members`
                   : "$35/bag · $30 for members"}
-              </p>
-            </div>
-            <div className="card reveal">
-              <h3>Cocina meals</h3>
-              <p>
-                Same-day cooked family dinners with a specialty in authentic
-                Mexican home cooking. Order by 11am, eat by 6.
-              </p>
-              <p className="price-line">
-                Family dinner drops from {cocina ? formatCents(cocina.base_price_cents) : "$75"}
               </p>
             </div>
             <div className="card reveal">
@@ -301,7 +290,7 @@ export default async function HomePage() {
               <ul>
                 <li>Weekly cleans, laundry &amp; groceries</li>
                 <li>Fridge cleanout every other week</li>
-                <li>2 Cocina meal drops + quarterly deep clean</li>
+                <li>Quarterly deep clean included</li>
                 <li>Dedicated household manager + {completa ? completa.extra_services_discount_pct : 20}% off</li>
               </ul>
               <Link className="btn ghost" href="/pricing">
@@ -316,12 +305,12 @@ export default async function HomePage() {
         <div className="wrap">
           <div className="band reveal">
             <div>
-              <h3>New members: first deep clean 50% off</h3>
+              <h3>New members: first deep clean 15% off</h3>
               <p>
                 Every membership starts with a top-to-bottom reset so your recurring visits stay flawless.{" "}
-                {deepClean && deepCleanHalfOff !== null
-                  ? `${formatCents(deepClean.base_price_cents)} → ${formatCents(deepCleanHalfOff)} at signup.`
-                  : "$325 → $162 at signup."}
+                {deepClean && deepCleanDiscounted !== null
+                  ? `${formatCents(deepClean.base_price_cents)} → ${formatCents(deepCleanDiscounted)} at signup.`
+                  : "$325 → $276 at signup."}
               </p>
             </div>
             <Link

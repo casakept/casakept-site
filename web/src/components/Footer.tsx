@@ -14,8 +14,8 @@ export default function Footer() {
             Casa<span>Kept</span>
           </Link>
           <p style={{ marginTop: 10, maxWidth: 300 }}>
-            Your home, handled. Cleaning, laundry, groceries, meals &amp;
-            errands across the Dallas–Fort Worth metroplex.
+            Your home, handled. Cleaning, laundry, groceries &amp; errands
+            across the Dallas–Fort Worth metroplex.
           </p>
           <p style={{ marginTop: 12 }}>
             <strong style={{ color: "var(--paper)" }}>

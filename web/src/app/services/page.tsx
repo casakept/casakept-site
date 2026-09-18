@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createPublicClient } from "@/lib/supabase/public";
+import { SERVICE_DETAILS } from "@/lib/serviceDetails";
 
 export const metadata: Metadata = {
   title: "Services & What's Included",
   description:
-    "Exactly what's included in every CasaKept service: standard vs deep cleaning checklists, per-bag laundry, grocery delivery, fridge restock, Cocina meals, organization, and errands.",
+    "Exactly what's included in every CasaKept service: standard vs deep cleaning checklists, per-bag laundry, grocery delivery, fridge restock, organization, and errands.",
 };
 
 // Public catalog data -- revalidated hourly via the anon-key public client
@@ -20,10 +21,15 @@ export default async function ServicesPage() {
   const supabase = createPublicClient();
   const { data: services } = await supabase
     .from("services")
-    .select("service_type, base_price_cents")
-    .in("service_type", ["standard_clean", "deep_clean"]);
+    .select("service_type, name, base_price_cents")
+    .in("service_type", ["standard_clean", "deep_clean", "errand"]);
   const standardPrice = services?.find((s) => s.service_type === "standard_clean")?.base_price_cents ?? 19900;
   const deepPrice = services?.find((s) => s.service_type === "deep_clean")?.base_price_cents ?? 32500;
+  const errandToGoPrice = services?.find((s) => s.name === "Errands - To Go")?.base_price_cents ?? 3500;
+  const errandWaitPrice = services?.find((s) => s.name === "Errands - Wait at Home")?.base_price_cents ?? 3000;
+  const deepDiscountedPrice = Math.floor((deepPrice * 0.85) / 100);
+  const standardDetail = SERVICE_DETAILS["Standard clean"];
+  const deepDetail = SERVICE_DETAILS["Deep clean"];
 
   return (
     <>
@@ -58,27 +64,18 @@ export default async function ServicesPage() {
                   letterSpacing: 1,
                 }}
               >
-                ~2–2.5 hrs · included in every membership
+                {standardDetail?.summaryTag}
               </p>
-              <p className="room">Every room</p>
-              <ul className="chk">
-                <li>Vacuum &amp; mop all floors, edge to edge</li>
-                <li>Dust all reachable surfaces, shelves &amp; sills</li>
-                <li>Wipe switches, handles &amp; high-touch points</li>
-                <li>Trash out, beds made, general tidy</li>
-              </ul>
-              <p className="room">Kitchen</p>
-              <ul className="chk">
-                <li>Counters &amp; backsplash sanitized, sink polished</li>
-                <li>Appliance exteriors, microwave in &amp; out</li>
-                <li>Stovetop degreased, cabinet fronts spot-wiped</li>
-              </ul>
-              <p className="room">Bathrooms</p>
-              <ul className="chk">
-                <li>Toilets, showers &amp; tubs scrubbed and disinfected</li>
-                <li>Sinks, counters, fixtures &amp; mirrors shined</li>
-                <li>Floors sanitized</li>
-              </ul>
+              {standardDetail?.blocks?.map((block) => (
+                <div key={block.heading}>
+                  <p className="room">{block.heading}</p>
+                  <ul className="chk">
+                    {block.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
               <p
                 style={{
                   fontSize: 12,
@@ -87,9 +84,7 @@ export default async function ServicesPage() {
                   marginTop: 12,
                 }}
               >
-                Every recurring visit also rotates in a detail zone — kitchen &amp; bathrooms on one visit, living
-                &amp; sleeping areas the next — so oven, fridge, baseboards, and windows never go too long without
-                attention, even between deep cleans.
+                {standardDetail?.footnote}
               </p>
             </div>
             <div
@@ -106,36 +101,22 @@ export default async function ServicesPage() {
                   letterSpacing: 1,
                 }}
               >
-                ~4–6 hrs · everything in standard, plus:
+                {deepDetail?.summaryTag}
               </p>
-              <p className="room">Every room — added</p>
-              <ul className="chk">
-                <li className="plus">Baseboards hand-wiped throughout</li>
-                <li className="plus">
-                  Ceiling fans &amp; blinds cleaned slat by slat
-                </li>
-                <li className="plus">
-                  Door frames, trim, vents &amp; window tracks
-                </li>
-                <li className="plus">
-                  Under &amp; behind reachable furniture; wall spot-cleaning
-                </li>
-              </ul>
-              <p className="room">Kitchen — added</p>
-              <ul className="chk">
-                <li className="plus">Oven cleaned inside, racks included</li>
-                <li className="plus">
-                  Refrigerator cleaned inside, shelf by shelf
-                </li>
-                <li className="plus">
-                  Range hood degreased; cabinets washed top to bottom
-                </li>
-              </ul>
-              <p className="room">Bathrooms — added</p>
-              <ul className="chk">
-                <li className="plus">Grout &amp; tile detail scrub</li>
-                <li className="plus">Hard-water &amp; soap-scum removal</li>
-              </ul>
+              {deepDetail?.blocks
+                ?.filter((block) => block.heading.includes("added"))
+                .map((block) => (
+                  <div key={block.heading}>
+                    <p className="room">{block.heading}</p>
+                    <ul className="chk">
+                      {block.items.map((item) => (
+                        <li className="plus" key={item}>
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
               <p
                 style={{
                   fontSize: 12,
@@ -144,8 +125,8 @@ export default async function ServicesPage() {
                   marginTop: 12,
                 }}
               >
-                New members start with a deep clean at 50% off. Included
-                quarterly on Casa Completa.
+                New members get 15% off their first deep clean ({formatCents(deepPrice)} → ${deepDiscountedPrice}).
+                Included quarterly on Casa Completa.
               </p>
             </div>
           </div>
@@ -195,15 +176,14 @@ export default async function ServicesPage() {
               </p>
             </div>
             <div className="card">
-              <h3>Errands &amp; wait-at-home</h3>
+              <h3>Errands — To Go &amp; Wait at Home</h3>
               <p>
-                Package returns, dry cleaning, post office, pharmacy —
-                proof-of-drop photos every stop. Or we&apos;ll wait at your
-                home for the &quot;between 8 and 2&quot; repair window so you
-                don&apos;t burn a vacation day.
+                Package returns, dry cleaning, post office, pharmacy — proof-of-drop photos every stop, within a
+                25-mile radius, up to 3 stops. Or we&apos;ll wait at your home for the &quot;between 8 and 2&quot;
+                repair window (booked hourly) so you don&apos;t burn a vacation day.
               </p>
               <p className="price-line">
-                Errand run (3 stops) $35 · wait-at-home $30/hr
+                To Go {formatCents(errandToGoPrice)} · Wait at Home {formatCents(errandWaitPrice)}/hr
               </p>
             </div>
             <div className="card">
@@ -216,20 +196,6 @@ export default async function ServicesPage() {
               </p>
               <p className="price-line">
                 Move-out from $425 · carpet $45–60/rm · windows $125
-              </p>
-            </div>
-            <div className="card">
-              <h3>Cocina meals</h3>
-              <p>
-                Same-day cooked family dinners — main, two sides, tortillas
-                where they belong — with a specialty in authentic Mexican
-                home cooking. Weekly menu drops every Sunday.
-              </p>
-              <p className="price-line">
-                $75 per family dinner ·{" "}
-                <Link href="/cocina" style={{ color: "var(--chile)" }}>
-                  see this week&apos;s menu →
-                </Link>
               </p>
             </div>
           </div>

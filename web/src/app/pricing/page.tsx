@@ -7,7 +7,7 @@ import type { Database } from "@/lib/supabase/database.types";
 export const metadata: Metadata = {
   title: "Memberships & Pricing",
   description:
-    "CasaKept membership pricing: Casa Base $199/mo, Casa Familia $449/mo, Casa Completa $949/mo. One-time cleaning, laundry, grocery, and meal pricing for Dallas–Fort Worth.",
+    "CasaKept membership pricing: Casa Base $199/mo, Casa Familia $449/mo, Casa Completa $949/mo. One-time cleaning, laundry, and grocery pricing for Dallas–Fort Worth.",
 };
 
 // Public catalog data, no per-user auth dependency -- revalidated hourly
@@ -46,7 +46,7 @@ export default async function PricingPage() {
     .in("plan_id", (plans ?? []).map((p) => p.id));
 
   const deepClean = services?.find((s) => s.service_type === "deep_clean");
-  const deepCleanHalfOff = deepClean ? deepClean.base_price_cents / 2 : null;
+  const deepCleanDiscounted = deepClean ? deepClean.base_price_cents * 0.85 : null;
 
   return (
     <>
@@ -109,13 +109,13 @@ export default async function PricingPage() {
             })}
           </div>
 
-          {deepClean && deepCleanHalfOff !== null && (
+          {deepClean && deepCleanDiscounted !== null && (
             <div className="band" style={{ marginTop: 26 }}>
               <div>
-                <h3>New members: first deep clean 50% off</h3>
+                <h3>New members: first deep clean 15% off</h3>
                 <p>
                   Every membership starts with a top-to-bottom reset so your recurring visits stay flawless.{" "}
-                  {formatCents(deepClean.base_price_cents)} → {formatCents(deepCleanHalfOff)} at signup.
+                  {formatCents(deepClean.base_price_cents)} → {formatCents(deepCleanDiscounted)} at signup.
                 </p>
               </div>
               <Link className="btn" style={{ background: "var(--verde)", color: "var(--paper)" }} href="/book">

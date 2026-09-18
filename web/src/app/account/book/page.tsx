@@ -24,7 +24,7 @@ export default async function BookPage() {
         .from("services")
         .select("id, service_type, name, description, base_price_cents, member_discount_pct")
         .eq("active", true)
-        .order("name", { ascending: true }),
+        .order("sort_order", { ascending: true }),
       supabase
         .from("subscriptions")
         .select(
