@@ -177,7 +177,18 @@ export async function createBookingAction(
     return { error: bookingError?.message ?? "Couldn't create that booking." };
   }
 
-  async function sendBookingConfirmedEmail() {
+  // "fallback" when a preferred cleaner was requested but assign_booking_staff
+  // resolved someone else; "unassigned" when nobody was available at all.
+  // Matches the same preferred-vs-actual comparison in the Stripe webhook's
+  // handlePaymentIntentSucceeded, since paid bookings are assigned there
+  // instead of here.
+  function assignmentNoteFor(assignedStaffId: string | null): "fallback" | "unassigned" | null {
+    if (!assignedStaffId) return "unassigned";
+    if (preferredStaffId && assignedStaffId !== preferredStaffId) return "fallback";
+    return null;
+  }
+
+  async function sendBookingConfirmedEmail(assignmentNote: "fallback" | "unassigned" | null) {
     const { subject, html } = bookingConfirmedEmail({
       serviceLabel: SERVICE_LABELS[service!.service_type] ?? service!.service_type,
       addressLine: `${property!.address_line1}, ${property!.city}`,
@@ -185,6 +196,7 @@ export async function createBookingAction(
       windowLabel: WINDOW_LABELS[timeWindow as Database["public"]["Enums"]["schedule_window"]] ?? timeWindow,
       priceCents,
       coveredByEntitlement,
+      assignmentNote,
     });
     await sendNotificationEmail({
       customerId: user!.id,
@@ -196,8 +208,8 @@ export async function createBookingAction(
   }
 
   if (coveredByEntitlement) {
-    await serviceClient.rpc("assign_booking_staff", { p_booking_id: booking.id });
-    await sendBookingConfirmedEmail();
+    const { data: assignedStaffId } = await serviceClient.rpc("assign_booking_staff", { p_booking_id: booking.id });
+    await sendBookingConfirmedEmail(assignmentNoteFor(assignedStaffId));
     revalidatePath("/account");
     revalidatePath("/account/book");
     revalidatePath("/account/membership");
@@ -236,8 +248,8 @@ export async function createBookingAction(
 
   // priceCents === 0 and not entitlement-covered (e.g. a free service) --
   // confirmed immediately, same as the entitlement-covered path above.
-  await serviceClient.rpc("assign_booking_staff", { p_booking_id: booking.id });
-  await sendBookingConfirmedEmail();
+  const { data: assignedStaffId } = await serviceClient.rpc("assign_booking_staff", { p_booking_id: booking.id });
+  await sendBookingConfirmedEmail(assignmentNoteFor(assignedStaffId));
   revalidatePath("/account");
   revalidatePath("/account/book");
   revalidatePath("/account/membership");

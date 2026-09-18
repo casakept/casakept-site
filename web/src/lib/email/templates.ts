@@ -41,12 +41,24 @@ export function bookingConfirmedEmail(params: {
   windowLabel: string;
   priceCents: number;
   coveredByEntitlement: boolean;
+  // "fallback" -- a preferred cleaner was requested but wasn't available
+  // for this slot, so a different crew member was assigned. "unassigned"
+  // -- nobody was available at all; an admin still needs to staff this
+  // visit manually. Omitted/null when the preferred cleaner (or any
+  // cleaner, if no preference) was assigned as expected.
+  assignmentNote?: "fallback" | "unassigned" | null;
 }): { subject: string; html: string } {
-  const { serviceLabel, addressLine, scheduledDate, windowLabel, priceCents, coveredByEntitlement } =
+  const { serviceLabel, addressLine, scheduledDate, windowLabel, priceCents, coveredByEntitlement, assignmentNote } =
     params;
   const priceLine = coveredByEntitlement
     ? "Covered by your membership -- no charge."
     : `${formatCents(priceCents)} charged.`;
+  const assignmentHtml =
+    assignmentNote === "fallback"
+      ? `<p style="margin:16px 0 0;line-height:1.6;font-size:14px;color:#6a746c;">Heads up: your preferred cleaner wasn't available for this time, so we've assigned another vetted member of our crew instead.</p>`
+      : assignmentNote === "unassigned"
+        ? `<p style="margin:16px 0 0;line-height:1.6;font-size:14px;color:#6a746c;">We're still finalizing your crew for this visit and will follow up shortly.</p>`
+        : "";
 
   return {
     subject: `Booking confirmed: ${serviceLabel} on ${formatDate(scheduledDate)}`,
@@ -62,6 +74,7 @@ export function bookingConfirmedEmail(params: {
         <tr><td style="padding:6px 0;color:#6a746c;">Address</td><td style="padding:6px 0;text-align:right;font-weight:700;">${addressLine}</td></tr>
         <tr><td style="padding:6px 0;color:#6a746c;">Price</td><td style="padding:6px 0;text-align:right;font-weight:700;">${priceLine}</td></tr>
       </table>
+      ${assignmentHtml}
       <p style="margin:24px 0 0;line-height:1.6;">Need to make a change? Reach out or manage it from your account.</p>
       `
     ),

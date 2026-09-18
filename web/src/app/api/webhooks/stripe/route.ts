@@ -286,15 +286,25 @@ async function handlePaymentIntentSucceeded(
     .update({ status: "confirmed" })
     .eq("id", payment.booking_id)
     .eq("status", "pending")
-    .select("service_type, scheduled_date, time_window, price_cents, customer_id, property_id")
+    .select("service_type, scheduled_date, time_window, price_cents, customer_id, property_id, preferred_staff_id")
     .maybeSingle();
   if (bookingError) console.error("handlePaymentIntentSucceeded booking update failed:", bookingError);
   if (!booking) return;
 
-  const { error: assignErr } = await supabase.rpc("assign_booking_staff", {
+  const { data: assignedStaffId, error: assignErr } = await supabase.rpc("assign_booking_staff", {
     p_booking_id: payment.booking_id,
   });
   if (assignErr) console.error("assign_booking_staff failed:", assignErr);
+
+  // "fallback" when a preferred cleaner was requested but someone else got
+  // assigned; "unassigned" when nobody was available at all. Same
+  // comparison as createBookingAction's assignmentNoteFor, duplicated here
+  // since this runs from the Stripe webhook, not the booking action.
+  const assignmentNote: "fallback" | "unassigned" | null = !assignedStaffId
+    ? "unassigned"
+    : booking.preferred_staff_id && assignedStaffId !== booking.preferred_staff_id
+      ? "fallback"
+      : null;
 
   const { data: property } = await supabase
     .from("properties")
@@ -310,6 +320,7 @@ async function handlePaymentIntentSucceeded(
     windowLabel: WINDOW_LABELS[booking.time_window] ?? booking.time_window,
     priceCents: booking.price_cents,
     coveredByEntitlement: false,
+    assignmentNote,
   });
   await sendNotificationEmail({
     customerId: booking.customer_id,
