@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { setStaffActiveAction } from "@/lib/actions/admin-staff";
 
 export type AdminStaffMember = {
@@ -27,18 +28,23 @@ export default function StaffRow({ staff }: { staff: AdminStaffMember }) {
           Hired {new Date(staff.hire_date + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
         </p>
       </div>
-      <form
-        action={action}
-        onSubmit={(e) => {
-          if (staff.active && !confirm(`Deactivate ${staff.profile?.full_name ?? "this staff member"}?`)) {
-            e.preventDefault();
-          }
-        }}
-      >
-        <button type="submit" className="btn ghost" style={{ padding: "6px 16px", fontSize: 13 }}>
-          {staff.active ? "Deactivate" : "Reactivate"}
-        </button>
-      </form>
+      <div style={{ display: "flex", gap: 10 }}>
+        <Link href={`/admin/staff/${staff.id}`} className="btn ghost" style={{ padding: "6px 16px", fontSize: 13 }}>
+          Manage availability
+        </Link>
+        <form
+          action={action}
+          onSubmit={(e) => {
+            if (staff.active && !confirm(`Deactivate ${staff.profile?.full_name ?? "this staff member"}?`)) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <button type="submit" className="btn ghost" style={{ padding: "6px 16px", fontSize: 13 }}>
+            {staff.active ? "Deactivate" : "Reactivate"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

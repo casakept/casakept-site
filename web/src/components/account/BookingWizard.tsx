@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createBookingAction, type BookingActionState } from "@/lib/actions/bookings";
+import { getSlotAvailabilityAction } from "@/lib/actions/booking-availability";
 import { StripePaymentForm } from "@/components/stripe/PaymentForm";
 import ServiceDetailModal from "@/components/account/ServiceDetailModal";
 import { SERVICE_CATEGORIES } from "@/lib/serviceCategories";
@@ -57,6 +58,30 @@ export default function BookingWizard({
   const [preferredStaffId, setPreferredStaffId] = useState("");
   const [notes, setNotes] = useState("");
   const [detailService, setDetailService] = useState<Service | null>(null);
+  // Keyed by date so a fetch for a stale date can never clobber the
+  // current one, and so "checking"/"result" fall out of comparing this
+  // against scheduledDate instead of needing their own state.
+  const [availabilityResult, setAvailabilityResult] = useState<{
+    date: string;
+    windows: Record<string, boolean> | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!scheduledDate) return;
+    let cancelled = false;
+    getSlotAvailabilityAction(scheduledDate).then((result) => {
+      if (cancelled) return;
+      setAvailabilityResult({ date: scheduledDate, windows: result });
+      setTimeWindow((current) => (current && result && result[current] === false ? "" : current));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [scheduledDate]);
+
+  const effectiveWindowAvailability =
+    availabilityResult?.date === scheduledDate ? availabilityResult.windows : null;
+  const checkingAvailability = !!scheduledDate && availabilityResult?.date !== scheduledDate;
 
   const servicesByCategory = useMemo(() => {
     return SERVICE_CATEGORIES.map((category) => ({
@@ -244,12 +269,26 @@ export default function BookingWizard({
               onChange={(e) => setTimeWindow(e.target.value)}
             >
               <option value="">Choose one</option>
-              {Object.entries(WINDOW_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
+              {Object.entries(WINDOW_LABELS).map(([value, label]) => {
+                const full = effectiveWindowAvailability?.[value] === false;
+                return (
+                  <option key={value} value={value} disabled={full}>
+                    {label}
+                    {full ? " (Full)" : ""}
+                  </option>
+                );
+              })}
             </select>
+            {checkingAvailability && (
+              <p style={{ fontSize: 12, color: "#9aa49d", marginTop: 6 }}>Checking crew availability…</p>
+            )}
+            {!checkingAvailability &&
+              effectiveWindowAvailability &&
+              Object.values(effectiveWindowAvailability).every((v) => !v) && (
+                <p style={{ fontSize: 13, color: "#BE4B2E", marginTop: 6 }}>
+                  No crew available this date -- try another day.
+                </p>
+              )}
           </div>
         </div>
       )}

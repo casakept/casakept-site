@@ -1,12 +1,16 @@
 "use client";
 
 import { useActionState, useRef, useEffect } from "react";
-import { addTimeOffAction, type AvailabilityActionState } from "@/lib/actions/staff-availability";
+import type { AvailabilityActionState } from "@/lib/actions/staff-availability";
 
 const initialState: AvailabilityActionState = {};
 
-export default function AddTimeOffForm() {
-  const [state, formAction, pending] = useActionState(addTimeOffAction, initialState);
+export default function AddTimeOffForm({
+  action,
+}: {
+  action: (prevState: AvailabilityActionState, formData: FormData) => Promise<AvailabilityActionState>;
+}) {
+  const [state, formAction, pending] = useActionState(action, initialState);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {

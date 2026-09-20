@@ -1,6 +1,5 @@
 "use client";
 
-import { toggleAvailabilityAction } from "@/lib/actions/staff-availability";
 import { WINDOW_LABELS } from "@/lib/serviceLabels";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -9,7 +8,13 @@ type Window = Database["public"]["Enums"]["schedule_window"];
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const WINDOWS: Window[] = ["morning", "midday", "afternoon"];
 
-export default function AvailabilityGrid({ available }: { available: Set<string> }) {
+export default function AvailabilityGrid({
+  available,
+  toggleAction,
+}: {
+  available: Set<string>;
+  toggleAction: (dayOfWeek: number, timeWindow: Window) => Promise<void>;
+}) {
   return (
     <div style={{ overflowX: "auto" }}>
       <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 480 }}>
@@ -30,7 +35,7 @@ export default function AvailabilityGrid({ available }: { available: Set<string>
               {WINDOWS.map((w) => {
                 const key = `${dayOfWeek}:${w}`;
                 const isAvailable = available.has(key);
-                const action = toggleAvailabilityAction.bind(null, dayOfWeek, w);
+                const action = toggleAction.bind(null, dayOfWeek, w);
                 return (
                   <td key={w} style={{ padding: "8px 12px", textAlign: "center" }}>
                     <form action={action}>

@@ -1,48 +1,71 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AvailabilityGrid from "@/components/staff/AvailabilityGrid";
 import AddTimeOffForm from "@/components/staff/AddTimeOffForm";
 import DeleteTimeOffButton from "@/components/staff/DeleteTimeOffButton";
-import { addTimeOffAction, deleteTimeOffAction, toggleAvailabilityAction } from "@/lib/actions/staff-availability";
+import {
+  adminAddTimeOffAction,
+  adminDeleteTimeOffAction,
+  adminToggleAvailabilityAction,
+} from "@/lib/actions/admin-staff-availability";
 
 export const metadata: Metadata = {
-  title: "Staff · Availability",
+  title: "Admin · Staff availability",
 };
 
-export default async function StaffAvailabilityPage() {
+export default async function AdminStaffDetailPage({ params }: PageProps<"/admin/staff/[id]">) {
+  const { id } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+
+  const { data: staff } = await supabase
+    .from("staff")
+    .select("id, active, profile:profiles!staff_id_fkey(full_name, email, phone)")
+    .eq("id", id)
+    .maybeSingle();
+  if (!staff) notFound();
 
   const [{ data: availability }, { data: timeOff }] = await Promise.all([
-    supabase
-      .from("staff_availability")
-      .select("day_of_week, time_window")
-      .eq("staff_id", user!.id),
+    supabase.from("staff_availability").select("day_of_week, time_window").eq("staff_id", id),
     supabase
       .from("staff_time_off")
       .select("id, start_date, end_date, reason")
-      .eq("staff_id", user!.id)
+      .eq("staff_id", id)
       .order("start_date", { ascending: true }),
   ]);
 
   const available = new Set((availability ?? []).map((a) => `${a.day_of_week}:${a.time_window}`));
+  const name = staff.profile?.full_name ?? "Unnamed staff";
 
   return (
     <div>
-      <h3>Weekly availability</h3>
-      <p style={{ marginTop: 6, color: "#6a746c" }}>
-        Tap a slot to mark yourself available or off for that day and time window.
+      <Link href="/admin/staff" style={{ fontSize: 13, color: "#6a746c" }}>
+        ← All staff
+      </Link>
+
+      <h3 style={{ marginTop: 16 }}>
+        {name} <span className={`status-badge ${staff.active ? "confirmed" : "cancelled"}`}>{staff.active ? "Active" : "Inactive"}</span>
+      </h3>
+      <p>
+        {staff.profile?.email}
+        {staff.profile?.phone ? ` · ${staff.profile.phone}` : ""}
       </p>
-      <div style={{ marginTop: 16 }}>
-        <AvailabilityGrid available={available} toggleAction={toggleAvailabilityAction} />
+
+      <div style={{ marginTop: 32 }}>
+        <h3>Weekly availability</h3>
+        <p style={{ marginTop: 6, color: "#6a746c" }}>
+          Tap a slot to mark {name} available or off for that day and time window.
+        </p>
+        <div style={{ marginTop: 16 }}>
+          <AvailabilityGrid available={available} toggleAction={adminToggleAvailabilityAction.bind(null, id)} />
+        </div>
       </div>
 
       <div style={{ marginTop: 40 }}>
         <h3>Time off</h3>
         <div style={{ marginTop: 14 }} className="card">
-          <AddTimeOffForm action={addTimeOffAction} />
+          <AddTimeOffForm action={adminAddTimeOffAction.bind(null, id)} />
         </div>
 
         {timeOff && timeOff.length > 0 && (
@@ -67,7 +90,7 @@ export default async function StaffAvailabilityPage() {
                   </p>
                   {t.reason && <p>{t.reason}</p>}
                 </div>
-                <DeleteTimeOffButton action={deleteTimeOffAction.bind(null, t.id)} />
+                <DeleteTimeOffButton action={adminDeleteTimeOffAction.bind(null, id, t.id)} />
               </div>
             ))}
           </div>

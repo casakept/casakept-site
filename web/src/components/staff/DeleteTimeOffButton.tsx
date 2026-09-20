@@ -1,10 +1,6 @@
 "use client";
 
-import { deleteTimeOffAction } from "@/lib/actions/staff-availability";
-
-export default function DeleteTimeOffButton({ timeOffId }: { timeOffId: string }) {
-  const action = deleteTimeOffAction.bind(null, timeOffId);
-
+export default function DeleteTimeOffButton({ action }: { action: () => Promise<void> }) {
   return (
     <form
       action={action}

@@ -1255,6 +1255,13 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
       }
+      get_slot_availability: {
+        Args: { p_date: string }
+        Returns: {
+          available: boolean
+          time_window: Database["public"]["Enums"]["schedule_window"]
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
     }
