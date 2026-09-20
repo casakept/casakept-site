@@ -186,6 +186,17 @@ async function syncSubscription(supabase: ServiceClient, sub: Stripe.Subscriptio
     return;
   }
 
+  // This insert only runs the very first time a customer's subscription
+  // goes active (see the `existing` guard above) -- the one trustworthy
+  // "initial signup payment succeeded" signal, so it's the correct place
+  // to attempt a founding-member grant. See grant_founding_member for the
+  // 100-slot cap, address dedup, and why it's safe to call unconditionally
+  // on every new subscription (idempotent for a returning member).
+  const { error: foundingErr } = await supabase.rpc("grant_founding_member", {
+    p_customer_id: customerId,
+  });
+  if (foundingErr) console.error("grant_founding_member failed:", foundingErr);
+
   const { data: plan } = await supabase
     .from("membership_plans")
     .select("name, monthly_price_cents")

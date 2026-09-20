@@ -674,6 +674,7 @@ export type Database = {
         Row: {
           created_at: string
           email: string | null
+          founding_member: boolean
           full_name: string | null
           id: string
           phone: string | null
@@ -685,6 +686,7 @@ export type Database = {
         Insert: {
           created_at?: string
           email?: string | null
+          founding_member?: boolean
           full_name?: string | null
           id: string
           phone?: string | null
@@ -696,6 +698,7 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string | null
+          founding_member?: boolean
           full_name?: string | null
           id?: string
           phone?: string | null
@@ -1262,6 +1265,7 @@ export type Database = {
           time_window: Database["public"]["Enums"]["schedule_window"]
         }[]
       }
+      grant_founding_member: { Args: { p_customer_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
     }

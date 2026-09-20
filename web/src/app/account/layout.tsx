@@ -17,7 +17,7 @@ export default async function AccountLayout({ children }: LayoutProps<"/account"
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name")
+    .select("full_name, founding_member")
     .eq("id", user.id)
     .single();
 
@@ -26,7 +26,12 @@ export default async function AccountLayout({ children }: LayoutProps<"/account"
       <div className="wrap">
         <span className="eyebrow">My account</span>
         <h1 style={{ fontSize: "clamp(28px,3.6vw,38px)" }}>
-          Hi{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}.
+          Hi{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}.{" "}
+          {profile?.founding_member && (
+            <span className="status-badge founding" style={{ verticalAlign: "middle" }}>
+              Founding member
+            </span>
+          )}
         </h1>
         <div className="account-shell" style={{ marginTop: 30 }}>
           <nav>

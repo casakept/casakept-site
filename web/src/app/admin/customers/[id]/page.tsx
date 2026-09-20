@@ -21,7 +21,7 @@ export default async function AdminCustomerDetailPage({ params }: PageProps<"/ad
 
   const { data: customer } = await supabase
     .from("profiles")
-    .select("id, full_name, email, phone, created_at")
+    .select("id, full_name, email, phone, created_at, founding_member")
     .eq("id", id)
     .eq("role", "customer")
     .maybeSingle();
@@ -60,7 +60,10 @@ export default async function AdminCustomerDetailPage({ params }: PageProps<"/ad
         ← All customers
       </Link>
 
-      <h3 style={{ marginTop: 16 }}>{customer.full_name ?? "Unnamed customer"}</h3>
+      <h3 style={{ marginTop: 16 }}>
+        {customer.full_name ?? "Unnamed customer"}{" "}
+        {customer.founding_member && <span className="status-badge founding">Founding member</span>}
+      </h3>
       <p>
         {customer.email}
         {customer.phone ? ` · ${customer.phone}` : ""}

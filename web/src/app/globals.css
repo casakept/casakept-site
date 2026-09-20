@@ -213,5 +213,6 @@ form input::placeholder,form textarea::placeholder{color:#9aa49d;}
 .status-badge.in_progress{background:#e0ecfb;color:#1d5fa8;}
 .status-badge.completed{background:#e6f4ea;color:#1b7a3d;}
 .status-badge.cancelled{background:#f1efe9;color:#7a8078;}
+.status-badge.founding{background:var(--marigold);color:var(--verde);}
 
 :focus-visible{outline:3px solid var(--marigold);outline-offset:2px;}

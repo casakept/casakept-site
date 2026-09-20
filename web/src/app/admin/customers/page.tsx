@@ -14,7 +14,7 @@ export default async function AdminCustomersPage({ searchParams }: PageProps<"/a
 
   let customersQuery = supabase
     .from("profiles")
-    .select("id, full_name, email, phone, created_at, properties(count)")
+    .select("id, full_name, email, phone, created_at, founding_member, properties(count)")
     .eq("role", "customer")
     .order("created_at", { ascending: false });
 
@@ -72,6 +72,7 @@ export default async function AdminCustomersPage({ searchParams }: PageProps<"/a
                 <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
                   <div>
                     <strong style={{ color: "var(--verde)" }}>{c.full_name ?? "Unnamed customer"}</strong>{" "}
+                    {c.founding_member && <span className="status-badge founding">Founding member</span>}{" "}
                     {planName && <span className="status-badge confirmed">{planName}</span>}
                     <p>
                       {c.email}
