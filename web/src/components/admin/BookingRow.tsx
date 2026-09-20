@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { updateBookingAction, type AdminBookingActionState } from "@/lib/actions/admin-bookings";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
+import { PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
 import type { Database } from "@/lib/supabase/database.types";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
@@ -30,6 +31,7 @@ export type AdminBooking = {
   customer: { full_name: string | null; phone: string | null } | null;
   property: { address_line1: string; city: string } | null;
   preferred_staff: { profile: { full_name: string | null } | null } | null;
+  product_selections: { category: string; product: { name: string } | null }[];
 };
 
 export default function BookingRow({
@@ -63,6 +65,14 @@ export default function BookingRow({
             </p>
           )}
           {booking.notes && <p style={{ fontSize: 12, color: "#9aa49d" }}>{booking.notes}</p>}
+          {booking.product_selections.length > 0 && (
+            <p style={{ fontSize: 12, color: "#9aa49d" }}>
+              {booking.product_selections
+                .filter((s) => s.product)
+                .map((s) => `${PRODUCT_CATEGORY_LABELS[s.category as ProductCategory] ?? s.category}: ${s.product!.name}`)
+                .join(" · ")}
+            </p>
+          )}
         </div>
         <div style={{ textAlign: "right" }}>
           <p style={{ fontWeight: 700, color: "var(--verde)" }}>

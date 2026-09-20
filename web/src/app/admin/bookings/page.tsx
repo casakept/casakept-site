@@ -37,7 +37,8 @@ export default async function AdminBookingsPage({ searchParams }: PageProps<"/ad
       `id, status, scheduled_date, time_window, service_type, price_cents, notes, assigned_staff_id,
        customer:profiles!bookings_customer_id_fkey(full_name, phone),
        property:properties(address_line1, city),
-       preferred_staff:staff!bookings_preferred_staff_id_fkey(profile:profiles!staff_id_fkey(full_name))`
+       preferred_staff:staff!bookings_preferred_staff_id_fkey(profile:profiles!staff_id_fkey(full_name)),
+       product_selections:booking_product_selections(category, product:cleaning_products(name))`
     )
     .order("scheduled_date", { ascending: true });
 
