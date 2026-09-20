@@ -39,6 +39,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      booking_product_selections: {
+        Row: {
+          booking_id: string
+          category: Database["public"]["Enums"]["cleaning_product_category"]
+          created_at: string
+          id: string
+          product_id: string
+        }
+        Insert: {
+          booking_id: string
+          category: Database["public"]["Enums"]["cleaning_product_category"]
+          created_at?: string
+          id?: string
+          product_id: string
+        }
+        Update: {
+          booking_id?: string
+          category?: Database["public"]["Enums"]["cleaning_product_category"]
+          created_at?: string
+          id?: string
+          product_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_product_selections_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_product_selections_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "cleaning_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           assigned_staff_id: string | null
@@ -169,6 +208,39 @@ export type Database = {
           requires_photo?: boolean
           rotation_zone?: string | null
           sort_order?: number
+        }
+        Relationships: []
+      }
+      cleaning_products: {
+        Row: {
+          active: boolean
+          category: Database["public"]["Enums"]["cleaning_product_category"]
+          created_at: string
+          id: string
+          is_default: boolean
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category: Database["public"]["Enums"]["cleaning_product_category"]
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: Database["public"]["Enums"]["cleaning_product_category"]
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1277,6 +1349,13 @@ export type Database = {
         | "in_progress"
         | "completed"
         | "cancelled"
+      cleaning_product_category:
+        | "all_purpose_cleaner"
+        | "hard_floor_cleaner"
+        | "carpet_cleaner"
+        | "glass_cleaner"
+        | "laundry_detergent"
+        | "fabric_softener"
       entitlement_frequency: "weekly" | "biweekly" | "monthly" | "quarterly"
       estimate_status: "draft" | "sent" | "converted" | "declined"
       notification_channel: "email" | "sms"
@@ -1437,6 +1516,14 @@ export const Constants = {
         "in_progress",
         "completed",
         "cancelled",
+      ],
+      cleaning_product_category: [
+        "all_purpose_cleaner",
+        "hard_floor_cleaner",
+        "carpet_cleaner",
+        "glass_cleaner",
+        "laundry_detergent",
+        "fabric_softener",
       ],
       entitlement_frequency: ["weekly", "biweekly", "monthly", "quarterly"],
       estimate_status: ["draft", "sent", "converted", "declined"],

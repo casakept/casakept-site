@@ -13,7 +13,7 @@ export default async function BookPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: properties }, { data: services }, { data: subscription }, { data: staff }] =
+  const [{ data: properties }, { data: services }, { data: subscription }, { data: staff }, { data: products }] =
     await Promise.all([
       supabase
         .from("properties")
@@ -34,6 +34,11 @@ export default async function BookPage() {
         .eq("status", "active")
         .maybeSingle(),
       supabase.rpc("active_staff_directory"),
+      supabase
+        .from("cleaning_products")
+        .select("id, category, name, is_default")
+        .eq("active", true)
+        .order("sort_order", { ascending: true }),
     ]);
 
   let entitlements: { service_type: string; quantity: number }[] = [];
@@ -80,6 +85,7 @@ export default async function BookPage() {
         entitlements={entitlements}
         usage={usage}
         staff={staff ?? []}
+        products={products ?? []}
       />
     </div>
   );

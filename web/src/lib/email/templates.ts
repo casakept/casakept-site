@@ -47,9 +47,21 @@ export function bookingConfirmedEmail(params: {
   // visit manually. Omitted/null when the preferred cleaner (or any
   // cleaner, if no preference) was assigned as expected.
   assignmentNote?: "fallback" | "unassigned" | null;
+  // The scent/product the customer picked per category, if this service
+  // type has any (see PRODUCT_CATEGORIES_BY_SERVICE) -- omitted/empty for
+  // service types with no product step at all.
+  products?: { categoryLabel: string; productName: string }[];
 }): { subject: string; html: string } {
-  const { serviceLabel, addressLine, scheduledDate, windowLabel, priceCents, coveredByEntitlement, assignmentNote } =
-    params;
+  const {
+    serviceLabel,
+    addressLine,
+    scheduledDate,
+    windowLabel,
+    priceCents,
+    coveredByEntitlement,
+    assignmentNote,
+    products,
+  } = params;
   const priceLine = coveredByEntitlement
     ? "Covered by your membership -- no charge."
     : `${formatCents(priceCents)} charged.`;
@@ -59,6 +71,20 @@ export function bookingConfirmedEmail(params: {
       : assignmentNote === "unassigned"
         ? `<p style="margin:16px 0 0;line-height:1.6;font-size:14px;color:#6a746c;">We're still finalizing your crew for this visit and will follow up shortly.</p>`
         : "";
+  const productsHtml =
+    products && products.length > 0
+      ? `
+      <p style="margin:20px 0 6px;font-weight:700;color:#1B3B31;">Products we'll use</p>
+      <table style="width:100%;border-collapse:collapse;">
+        ${products
+          .map(
+            (p) =>
+              `<tr><td style="padding:4px 0;color:#6a746c;">${p.categoryLabel}</td><td style="padding:4px 0;text-align:right;font-weight:700;">${p.productName}</td></tr>`
+          )
+          .join("")}
+      </table>
+      `
+      : "";
 
   return {
     subject: `Booking confirmed: ${serviceLabel} on ${formatDate(scheduledDate)}`,
@@ -75,6 +101,7 @@ export function bookingConfirmedEmail(params: {
         <tr><td style="padding:6px 0;color:#6a746c;">Price</td><td style="padding:6px 0;text-align:right;font-weight:700;">${priceLine}</td></tr>
       </table>
       ${assignmentHtml}
+      ${productsHtml}
       <p style="margin:24px 0 0;line-height:1.6;">Need to make a change? Reach out or manage it from your account.</p>
       `
     ),

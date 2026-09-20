@@ -9,6 +9,7 @@ import { entitlementPeriodFor, widestFrequency } from "@/lib/entitlements";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import { sendNotificationEmail } from "@/lib/email/send";
 import { bookingConfirmedEmail, bookingCancelledEmail } from "@/lib/email/templates";
+import { PRODUCT_CATEGORIES_BY_SERVICE, PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
 import type { Database } from "@/lib/supabase/database.types";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
@@ -177,6 +178,47 @@ export async function createBookingAction(
     return { error: bookingError?.message ?? "Couldn't create that booking." };
   }
 
+  // Re-validate the wizard's product picks against the live catalog rather
+  // than trusting the hidden-input values -- a product could have been
+  // deactivated, or the category/id pairing tampered with, between page
+  // load and submit. Best-effort: a failure here logs but never blocks the
+  // booking itself, since the visit mattering more than the scent record.
+  const applicableCategories: ProductCategory[] =
+    PRODUCT_CATEGORIES_BY_SERVICE[service.service_type as keyof typeof PRODUCT_CATEGORIES_BY_SERVICE] ?? [];
+  const requestedSelections = applicableCategories
+    .map((category) => ({ category, productId: String(formData.get(`product_${category}`) ?? "") }))
+    .filter((s) => s.productId);
+
+  let productsForEmail: { categoryLabel: string; productName: string }[] = [];
+
+  if (requestedSelections.length > 0) {
+    const { data: validProducts } = await supabase
+      .from("cleaning_products")
+      .select("id, category, name, active")
+      .in(
+        "id",
+        requestedSelections.map((s) => s.productId)
+      );
+    const validById = new Map((validProducts ?? []).map((p) => [p.id, p]));
+
+    const confirmedSelections = requestedSelections
+      .map((s) => ({ ...s, match: validById.get(s.productId) }))
+      .filter((s) => s.match && s.match.active && s.match.category === s.category);
+
+    if (confirmedSelections.length > 0) {
+      const { error: productSelError } = await supabase.from("booking_product_selections").insert(
+        confirmedSelections.map((s) => ({ booking_id: booking.id, category: s.category, product_id: s.productId }))
+      );
+      if (productSelError) console.error("createBookingAction: product selection insert failed", productSelError);
+      else {
+        productsForEmail = confirmedSelections.map((s) => ({
+          categoryLabel: PRODUCT_CATEGORY_LABELS[s.category],
+          productName: s.match!.name,
+        }));
+      }
+    }
+  }
+
   // "fallback" when a preferred cleaner was requested but assign_booking_staff
   // resolved someone else; "unassigned" when nobody was available at all.
   // Matches the same preferred-vs-actual comparison in the Stripe webhook's
@@ -197,6 +239,7 @@ export async function createBookingAction(
       priceCents,
       coveredByEntitlement,
       assignmentNote,
+      products: productsForEmail,
     });
     await sendNotificationEmail({
       customerId: user!.id,

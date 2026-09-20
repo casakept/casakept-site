@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { advanceBookingStatusAction, type StaffBookingActionState } from "@/lib/actions/staff-bookings";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
+import { PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
 import CheckInButton from "./CheckInButton";
 import ChecklistSection, { type ChecklistCatalogItem, type ChecklistEntry } from "./ChecklistSection";
 import type { Database } from "@/lib/supabase/database.types";
@@ -26,6 +27,7 @@ export type StaffJob = {
   property: { address_line1: string; city: string } | null;
   checkin: { check_in_at: string | null; check_out_at: string | null } | null;
   checklist: ChecklistEntry[];
+  product_selections: { category: string; product: { name: string } | null }[];
 };
 
 const NEXT_ACTION_LABEL: Partial<Record<BookingStatus, string>> = {
@@ -69,6 +71,14 @@ export default function JobRow({
             {job.property?.address_line1}, {job.property?.city}
           </p>
           {job.notes && <p style={{ fontSize: 12, color: "#9aa49d" }}>{job.notes}</p>}
+          {job.product_selections.length > 0 && (
+            <p style={{ fontSize: 12, color: "#9aa49d" }}>
+              {job.product_selections
+                .filter((s) => s.product)
+                .map((s) => `${PRODUCT_CATEGORY_LABELS[s.category as ProductCategory] ?? s.category}: ${s.product!.name}`)
+                .join(" · ")}
+            </p>
+          )}
         </div>
         <div style={{ textAlign: "right" }}>
           <p style={{ fontWeight: 700, color: "var(--verde)" }}>

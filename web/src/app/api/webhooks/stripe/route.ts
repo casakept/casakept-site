@@ -10,6 +10,7 @@ import {
   membershipActiveEmail,
   membershipPastDueEmail,
 } from "@/lib/email/templates";
+import { PRODUCT_CATEGORY_LABELS } from "@/lib/productCategories";
 import type { Database } from "@/lib/supabase/database.types";
 
 export const runtime = "nodejs";
@@ -324,6 +325,20 @@ async function handlePaymentIntentSucceeded(
     .maybeSingle();
   if (!property) return;
 
+  // Product selections were already stored by createBookingAction at
+  // booking-creation time (before this payment even ran) -- just read them
+  // back for the email, no re-validation needed here.
+  const { data: productSelections } = await supabase
+    .from("booking_product_selections")
+    .select("category, product:cleaning_products(name)")
+    .eq("booking_id", payment.booking_id);
+  const products = (productSelections ?? [])
+    .filter((s) => s.product)
+    .map((s) => ({
+      categoryLabel: PRODUCT_CATEGORY_LABELS[s.category] ?? s.category,
+      productName: s.product!.name,
+    }));
+
   const { subject, html } = bookingConfirmedEmail({
     serviceLabel: SERVICE_LABELS[booking.service_type] ?? booking.service_type,
     addressLine: `${property.address_line1}, ${property.city}`,
@@ -332,6 +347,7 @@ async function handlePaymentIntentSucceeded(
     priceCents: booking.price_cents,
     coveredByEntitlement: false,
     assignmentNote,
+    products,
   });
   await sendNotificationEmail({
     customerId: booking.customer_id,

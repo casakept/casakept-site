@@ -33,7 +33,7 @@ export default async function StaffJobsPage({ searchParams }: PageProps<"/staff/
   let query = supabase
     .from("bookings")
     .select(
-      "id, status, scheduled_date, time_window, service_type, property_id, notes, customer:profiles!bookings_customer_id_fkey(full_name, phone), property:properties(address_line1, city), checkin:visit_checkins(check_in_at, check_out_at), checklist:visit_checklist_entries(checklist_item_id, completed, photo_path)"
+      "id, status, scheduled_date, time_window, service_type, property_id, notes, customer:profiles!bookings_customer_id_fkey(full_name, phone), property:properties(address_line1, city), checkin:visit_checkins(check_in_at, check_out_at), checklist:visit_checklist_entries(checklist_item_id, completed, photo_path), product_selections:booking_product_selections(category, product:cleaning_products(name))"
     )
     .eq("assigned_staff_id", user!.id)
     .order("scheduled_date", { ascending: filter !== "completed" });

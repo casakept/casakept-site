@@ -7,6 +7,7 @@ import { getSlotAvailabilityAction } from "@/lib/actions/booking-availability";
 import { StripePaymentForm } from "@/components/stripe/PaymentForm";
 import ServiceDetailModal from "@/components/account/ServiceDetailModal";
 import { SERVICE_CATEGORIES } from "@/lib/serviceCategories";
+import { PRODUCT_CATEGORIES_BY_SERVICE, PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
 
 type Property = { id: string; label: string | null; address_line1: string; city: string };
 type Service = {
@@ -20,6 +21,7 @@ type Service = {
 type Entitlement = { service_type: string; quantity: number };
 type Usage = { service_type: string; used_count: number; included_count: number };
 type StaffMember = { id: string; full_name: string | null };
+type Product = { id: string; category: ProductCategory; name: string; is_default: boolean };
 
 const CLEANING_SERVICE_TYPES = new Set(["standard_clean", "deep_clean"]);
 const WINDOW_LABELS: Record<string, string> = {
@@ -38,6 +40,7 @@ export default function BookingWizard({
   entitlements,
   usage,
   staff,
+  products,
 }: {
   properties: Property[];
   services: Service[];
@@ -46,6 +49,7 @@ export default function BookingWizard({
   entitlements: Entitlement[];
   usage: Usage[];
   staff: StaffMember[];
+  products: Product[];
 }) {
   const [state, formAction, pending] = useActionState(createBookingAction, initialState);
   const [paid, setPaid] = useState(false);
@@ -58,6 +62,9 @@ export default function BookingWizard({
   const [preferredStaffId, setPreferredStaffId] = useState("");
   const [notes, setNotes] = useState("");
   const [detailService, setDetailService] = useState<Service | null>(null);
+  // Only overrides the customer explicitly picked -- categories with no
+  // override fall back to that category's default product, computed below.
+  const [productSelections, setProductSelections] = useState<Record<string, string>>({});
   // Keyed by date so a fetch for a stale date can never clobber the
   // current one, and so "checking"/"result" fall out of comparing this
   // against scheduledDate instead of needing their own state.
@@ -117,15 +124,36 @@ export default function BookingWizard({
 
   const today = new Date().toISOString().slice(0, 10);
 
-  const stepValid = {
-    1: !!propertyId,
-    2: !!serviceId,
-    3: !!scheduledDate && !!timeWindow,
-    4: true,
-  } as const;
+  const applicableCategories = selectedService
+    ? PRODUCT_CATEGORIES_BY_SERVICE[selectedService.service_type as keyof typeof PRODUCT_CATEGORIES_BY_SERVICE] ?? []
+    : [];
+  const hasProductCategories = applicableCategories.length > 0;
 
-  const totalSteps = isCleaning ? 4 : 3;
-  const confirmStep = totalSteps + 1;
+  const defaultProductByCategory: Partial<Record<ProductCategory, string>> = {};
+  for (const category of applicableCategories) {
+    const inCategory = products.filter((p) => p.category === category);
+    const def = inCategory.find((p) => p.is_default) ?? inCategory[0];
+    if (def) defaultProductByCategory[category] = def.id;
+  }
+  const effectiveProductSelections: Partial<Record<ProductCategory, string>> = {};
+  for (const category of applicableCategories) {
+    effectiveProductSelections[category] = productSelections[category] ?? defaultProductByCategory[category] ?? "";
+  }
+
+  // Steps are always consecutive integers -- cleaner/products only bump the
+  // cursor when they actually apply -- so Continue/Back can just be
+  // step +/- 1 everywhere below with no gaps to special-case.
+  let stepCursor = 3;
+  const cleanerStep = isCleaning ? ++stepCursor : null;
+  const productsStep = hasProductCategories ? ++stepCursor : null;
+  const confirmStep = ++stepCursor;
+
+  function isStepValid(s: number): boolean {
+    if (s === 1) return !!propertyId;
+    if (s === 2) return !!serviceId;
+    if (s === 3) return !!scheduledDate && !!timeWindow;
+    return true; // cleaner and products steps are always optional
+  }
 
   if (state.success || paid) {
     return (
@@ -179,13 +207,26 @@ export default function BookingWizard({
       <input type="hidden" name="time_window" value={timeWindow} />
       <input type="hidden" name="preferred_staff_id" value={preferredStaffId} />
       <input type="hidden" name="notes" value={notes} />
+      {applicableCategories.map((category) => {
+        const productId = effectiveProductSelections[category];
+        return productId ? (
+          <input key={category} type="hidden" name={`product_${category}`} value={productId} />
+        ) : null;
+      })}
 
       <div className="wizard-steps">
         <span className={step === 1 ? "active" : step > 1 ? "done" : ""}>1. Property</span>
         <span className={step === 2 ? "active" : step > 2 ? "done" : ""}>2. Service</span>
         <span className={step === 3 ? "active" : step > 3 ? "done" : ""}>3. Date &amp; time</span>
-        {isCleaning && (
-          <span className={step === 4 ? "active" : step > 4 ? "done" : ""}>4. Cleaner</span>
+        {cleanerStep && (
+          <span className={step === cleanerStep ? "active" : step > cleanerStep ? "done" : ""}>
+            {cleanerStep}. Cleaner
+          </span>
+        )}
+        {productsStep && (
+          <span className={step === productsStep ? "active" : step > productsStep ? "done" : ""}>
+            {productsStep}. Products
+          </span>
         )}
         <span className={step === confirmStep ? "active" : ""}>{confirmStep}. Confirm</span>
       </div>
@@ -293,7 +334,7 @@ export default function BookingWizard({
         </div>
       )}
 
-      {step === 4 && isCleaning && (
+      {cleanerStep && step === cleanerStep && (
         <div className="option-grid">
           <button
             type="button"
@@ -316,6 +357,37 @@ export default function BookingWizard({
         </div>
       )}
 
+      {productsStep && step === productsStep && (
+        <div style={{ marginTop: 8 }}>
+          <p style={{ fontSize: 13, color: "#6a746c", marginBottom: 16 }}>
+            We&apos;ll use these products in your home. Pick a different scent for any category, or leave the
+            default.
+          </p>
+          {applicableCategories.map((category) => {
+            const categoryProducts = products.filter((p) => p.category === category);
+            if (categoryProducts.length === 0) return null;
+            const selected = effectiveProductSelections[category];
+            return (
+              <div key={category} style={{ marginBottom: 24 }}>
+                <p className="room">{PRODUCT_CATEGORY_LABELS[category]}</p>
+                <div className="option-grid">
+                  {categoryProducts.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`option-card${selected === p.id ? " selected" : ""}`}
+                      onClick={() => setProductSelections((prev) => ({ ...prev, [category]: p.id }))}
+                    >
+                      <div className="t">{p.name}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {step === confirmStep && (
         <div style={{ marginTop: 18 }}>
           <div className="card" style={{ maxWidth: 420 }}>
@@ -333,6 +405,15 @@ export default function BookingWizard({
                 {staff.find((m) => m.id === preferredStaffId)?.full_name || "No preference"}
               </p>
             )}
+            {applicableCategories.map((category) => {
+              const product = products.find((p) => p.id === effectiveProductSelections[category]);
+              if (!product) return null;
+              return (
+                <p key={category} style={{ marginTop: 6, fontSize: 13 }}>
+                  {PRODUCT_CATEGORY_LABELS[category]}: {product.name}
+                </p>
+              );
+            })}
             <p className="price-line" style={{ marginTop: 10 }}>
               {priceCents === 0 ? "Covered by membership" : `$${(priceCents / 100).toFixed(0)}`}
             </p>
@@ -370,8 +451,8 @@ export default function BookingWizard({
           <button
             type="button"
             className="btn"
-            disabled={!stepValid[step as 1 | 2 | 3 | 4]}
-            onClick={() => setStep(isCleaning || step < 3 ? step + 1 : confirmStep)}
+            disabled={!isStepValid(step)}
+            onClick={() => setStep(step + 1)}
           >
             Continue
           </button>
