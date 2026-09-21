@@ -31,9 +31,13 @@ export default function Header() {
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
 
   // The header persists across client-side navigations (it lives in the
-  // root layout), so this can't just run once and read whatever was true on
-  // first mount -- it needs onAuthStateChange too, to pick up sign-in/
-  // sign-out that happens without a full page reload.
+  // root layout), so it can't just run once and read whatever was true on
+  // first mount. onAuthStateChange only covers sign-in/out performed
+  // through *this* browser client -- it never fires for signInAction/
+  // signOutAction, which sign in/out via a server-side client and just
+  // redirect, so the browser client never sees the change. Re-running the
+  // check on every pathname change catches that: login and logout always
+  // land on a different route.
   useEffect(() => {
     const supabase = createClient();
     let active = true;
@@ -65,7 +69,7 @@ export default function Header() {
       active = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [pathname]);
 
   return (
     <header className="site-header">
