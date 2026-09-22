@@ -52,6 +52,22 @@ export async function createBookingAction(
     return { error: "Choose a date today or later." };
   }
 
+  // Final availability recheck -- the wizard's step 3 already checked this,
+  // but that was a snapshot from whenever the customer picked a date; time
+  // has passed since (filling out later steps, entering payment details),
+  // and the slot could have filled up in the meantime. Re-running the same
+  // check right at submit time closes most of that gap, so a customer isn't
+  // charged for a slot that's already gone. Fails open on an RPC error --
+  // this is a final safety net on top of the step 3 check, not the only
+  // gate, so a transient read failure here shouldn't block booking.
+  const { data: slotAvailability } = await supabase.rpc("get_slot_availability", {
+    p_date: scheduledDate,
+  });
+  const stillAvailable = slotAvailability?.find((w) => w.time_window === timeWindow)?.available;
+  if (stillAvailable === false) {
+    return { error: "That time slot was just taken. Please go back and choose another." };
+  }
+
   const { data: property } = await supabase
     .from("properties")
     .select("id, address_line1, city")
