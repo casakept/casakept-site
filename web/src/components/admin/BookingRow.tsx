@@ -32,7 +32,30 @@ export type AdminBooking = {
   property: { address_line1: string; city: string } | null;
   preferred_staff: { profile: { full_name: string | null } | null } | null;
   product_selections: { category: string; product: { name: string } | null }[];
+  checkin: {
+    check_in_at: string | null;
+    check_in_lat: number | null;
+    check_in_lng: number | null;
+    check_out_at: string | null;
+    check_out_lat: number | null;
+    check_out_lng: number | null;
+  } | null;
 };
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function formatDuration(startIso: string, endIso: string): string {
+  const minutes = Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000);
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return hours > 0 ? `${hours}h ${remainder}m` : `${remainder}m`;
+}
+
+function mapLink(lat: number, lng: number): string {
+  return `https://www.google.com/maps?q=${lat},${lng}`;
+}
 
 export default function BookingRow({
   booking,
@@ -71,6 +94,47 @@ export default function BookingRow({
                 .filter((s) => s.product)
                 .map((s) => `${PRODUCT_CATEGORY_LABELS[s.category as ProductCategory] ?? s.category}: ${s.product!.name}`)
                 .join(" · ")}
+            </p>
+          )}
+          {booking.checkin?.check_in_at && (
+            <p style={{ fontSize: 12, color: "#9aa49d" }}>
+              Checked in: {formatTime(booking.checkin.check_in_at)}
+              {booking.checkin.check_in_lat != null && booking.checkin.check_in_lng != null && (
+                <>
+                  {" "}
+                  (
+                  <a
+                    href={mapLink(booking.checkin.check_in_lat, booking.checkin.check_in_lng)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    view on map
+                  </a>
+                  )
+                </>
+              )}
+              {booking.checkin.check_out_at && (
+                <>
+                  {" · Checked out: "}
+                  {formatTime(booking.checkin.check_out_at)}
+                  {booking.checkin.check_out_lat != null && booking.checkin.check_out_lng != null && (
+                    <>
+                      {" "}
+                      (
+                      <a
+                        href={mapLink(booking.checkin.check_out_lat, booking.checkin.check_out_lng)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        view on map
+                      </a>
+                      )
+                    </>
+                  )}
+                  {" · "}
+                  {formatDuration(booking.checkin.check_in_at, booking.checkin.check_out_at)}
+                </>
+              )}
             </p>
           )}
         </div>
