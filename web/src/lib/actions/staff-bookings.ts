@@ -22,11 +22,19 @@ const ALLOWED_TRANSITIONS: Record<string, BookingStatus> = {
   in_progress: "completed",
 };
 
+// Folds check-in/check-out into the same action as starting/finishing a
+// visit. Previously these were separate, unlinked buttons -- a cleaner
+// could start or complete a job without ever recording a time, which
+// defeated the point of tracking visit duration. Coordinates are
+// best-effort: geolocation runs client-side before this is called, and a
+// denial or unavailable API still passes through as null rather than
+// blocking the transition -- the timestamp is what actually matters for
+// time tracking, the GPS pin is supplementary.
 export async function advanceBookingStatusAction(
   bookingId: string,
   currentStatus: BookingStatus,
-  _prevState: StaffBookingActionState,
-  _formData: FormData
+  staffId: string,
+  coords: { lat: number; lng: number } | null
 ): Promise<StaffBookingActionState> {
   const nextStatus = ALLOWED_TRANSITIONS[currentStatus];
   if (!nextStatus) {
@@ -44,6 +52,27 @@ export async function advanceBookingStatusAction(
 
   if (error) return { error: error.message };
   if (!data) return { error: "This job was already updated elsewhere. Refresh and try again." };
+
+  // Only record the checkin once the transition actually happened, so a
+  // no-op double-click doesn't leave a stray timestamp behind. Best-effort:
+  // a failure here shouldn't undo or block a status change that already
+  // succeeded and is the real source of truth.
+  const isStarting = nextStatus === "in_progress";
+  const checkinPatch = isStarting
+    ? {
+        check_in_at: new Date().toISOString(),
+        check_in_lat: coords?.lat ?? null,
+        check_in_lng: coords?.lng ?? null,
+      }
+    : {
+        check_out_at: new Date().toISOString(),
+        check_out_lat: coords?.lat ?? null,
+        check_out_lng: coords?.lng ?? null,
+      };
+  const { error: checkinError } = await supabase
+    .from("visit_checkins")
+    .upsert({ booking_id: bookingId, staff_id: staffId, ...checkinPatch }, { onConflict: "booking_id" });
+  if (checkinError) console.error("advanceBookingStatusAction: checkin upsert failed", checkinError);
 
   revalidatePath("/staff/jobs");
   revalidatePath("/staff");

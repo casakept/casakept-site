@@ -1,10 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
-import { advanceBookingStatusAction, type StaffBookingActionState } from "@/lib/actions/staff-bookings";
+import { useState, useTransition } from "react";
+import { advanceBookingStatusAction } from "@/lib/actions/staff-bookings";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import { PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
-import CheckInButton from "./CheckInButton";
 import ChecklistSection, { type ChecklistCatalogItem, type ChecklistEntry } from "./ChecklistSection";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -36,8 +35,6 @@ const NEXT_ACTION_LABEL: Partial<Record<BookingStatus, string>> = {
   in_progress: "Mark complete",
 };
 
-const initialState: StaffBookingActionState = {};
-
 export default function JobRow({
   job,
   staffId,
@@ -49,11 +46,34 @@ export default function JobRow({
   checklistItems: ChecklistCatalogItem[];
   rotationZone?: "kitchen_bath" | "bed_living" | null;
 }) {
-  const action = advanceBookingStatusAction.bind(null, job.id, job.status);
-  const [state, formAction, pending] = useActionState(action, initialState);
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const actionLabel = NEXT_ACTION_LABEL[job.status];
-  const showCheckins = job.status !== "cancelled";
   const showChecklist = job.status === "in_progress" && CHECKLIST_SERVICE_TYPES.includes(job.service_type);
+
+  // Geolocation has to be requested client-side before the server action
+  // runs -- captures the check-in (starting) or check-out (finishing)
+  // timestamp as part of the same click as advancing the job, so it can't
+  // be skipped the way a separate "Check in" button could be. Denied/
+  // unavailable location still proceeds with coords: null rather than
+  // blocking the job -- see advanceBookingStatusAction.
+  function handleAdvance() {
+    setError(null);
+    function run(coords: { lat: number; lng: number } | null) {
+      startTransition(async () => {
+        const result = await advanceBookingStatusAction(job.id, job.status, staffId, coords);
+        if (result.error) setError(result.error);
+      });
+    }
+    if (!navigator.geolocation) {
+      run(null);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => run({ lat: position.coords.latitude, lng: position.coords.longitude }),
+      () => run(null)
+    );
+  }
 
   return (
     <div className="card">
@@ -93,34 +113,30 @@ export default function JobRow({
       </div>
 
       {actionLabel && (
-        <form action={formAction} style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 10 }}>
-          <button className="btn ghost" type="submit" disabled={pending} style={{ padding: "6px 16px", fontSize: 13 }}>
+        <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={handleAdvance}
+            disabled={pending}
+            style={{ padding: "6px 16px", fontSize: 13 }}
+          >
             {pending ? "Saving…" : actionLabel}
           </button>
-          {state.error && (
+          {error && (
             <span className="form-msg error" style={{ margin: 0, padding: "6px 12px" }}>
-              {state.error}
-            </span>
-          )}
-        </form>
-      )}
-
-      {showCheckins && (
-        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          {!job.checkin?.check_in_at && (
-            <CheckInButton bookingId={job.id} staffId={staffId} type="check_in" label="Check in" />
-          )}
-          {job.checkin?.check_in_at && !job.checkin?.check_out_at && (
-            <CheckInButton bookingId={job.id} staffId={staffId} type="check_out" label="Check out" />
-          )}
-          {job.checkin?.check_in_at && (
-            <span style={{ fontSize: 12, color: "#9aa49d" }}>
-              In: {new Date(job.checkin.check_in_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
-              {job.checkin.check_out_at &&
-                ` · Out: ${new Date(job.checkin.check_out_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`}
+              {error}
             </span>
           )}
         </div>
+      )}
+
+      {job.checkin?.check_in_at && (
+        <p style={{ marginTop: 10, fontSize: 12, color: "#9aa49d" }}>
+          In: {new Date(job.checkin.check_in_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+          {job.checkin.check_out_at &&
+            ` · Out: ${new Date(job.checkin.check_out_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`}
+        </p>
       )}
 
       {showChecklist && (
