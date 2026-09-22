@@ -335,25 +335,31 @@ export default function BookingWizard({
       )}
 
       {cleanerStep && step === cleanerStep && (
-        <div className="option-grid">
-          <button
-            type="button"
-            className={`option-card${preferredStaffId === "" ? " selected" : ""}`}
-            onClick={() => setPreferredStaffId("")}
-          >
-            <div className="t">No preference</div>
-            <div className="d">Next available crew member.</div>
-          </button>
-          {staff.map((member) => (
+        <div>
+          <p style={{ fontSize: 13, color: "#6a746c", marginBottom: 16 }}>
+            If your preferred cleaner is no longer available by the time you book, we&apos;ll assign another
+            vetted member of our crew -- you&apos;ll see who in your confirmation email.
+          </p>
+          <div className="option-grid">
             <button
-              key={member.id}
               type="button"
-              className={`option-card${preferredStaffId === member.id ? " selected" : ""}`}
-              onClick={() => setPreferredStaffId(member.id)}
+              className={`option-card${preferredStaffId === "" ? " selected" : ""}`}
+              onClick={() => setPreferredStaffId("")}
             >
-              <div className="t">{member.full_name || "Crew member"}</div>
+              <div className="t">No preference</div>
+              <div className="d">Next available crew member.</div>
             </button>
-          ))}
+            {staff.map((member) => (
+              <button
+                key={member.id}
+                type="button"
+                className={`option-card${preferredStaffId === member.id ? " selected" : ""}`}
+                onClick={() => setPreferredStaffId(member.id)}
+              >
+                <div className="t">{member.full_name || "Crew member"}</div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
