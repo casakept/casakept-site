@@ -24,3 +24,18 @@ export function businessDateAnchor(date: Date = new Date()): Date {
   const [year, month, day] = businessDateISO(date).split("-").map(Number);
   return new Date(Date.UTC(year, month - 1, day));
 }
+
+// Human-readable "Sep 23, 2026, 4:32 PM CDT" in Central time, for stamping
+// onto checklist photos so a visit's photo timing isn't disputable later.
+export function businessTimestampLabel(date: Date = new Date()): string {
+  const formatted = new Intl.DateTimeFormat("en-US", {
+    timeZone: BUSINESS_TIMEZONE,
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+  const tzAbbr =
+    new Intl.DateTimeFormat("en-US", { timeZone: BUSINESS_TIMEZONE, timeZoneName: "short" })
+      .formatToParts(date)
+      .find((p) => p.type === "timeZoneName")?.value ?? "CT";
+  return `${formatted} ${tzAbbr}`;
+}

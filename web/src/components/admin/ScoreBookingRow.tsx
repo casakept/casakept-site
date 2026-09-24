@@ -1,11 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useActionState, type ReactNode } from "react";
+import { useActionState, useState, type ReactNode } from "react";
 import { scoreVisitAction, type ScoreVisitActionState } from "@/lib/actions/admin-scores";
 import { SCORE_CATEGORIES, VISIT_SCORE_EVENTS, type ScoreCategoryKey } from "@/lib/visitScoring";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
-import { ROTATION_ZONE_LABELS, type RotationZone } from "@/components/staff/ChecklistSection";
 import type { Database } from "@/lib/supabase/database.types";
 
 // The rubric assigns this one checklist item to Professionalism ("home
@@ -63,23 +62,126 @@ function mapLink(lat: number, lng: number): string {
   return `https://www.google.com/maps?q=${lat},${lng}`;
 }
 
-function PhotoStrip({ photos }: { photos: { photo_url: string | null; item: { name: string } | null }[] }) {
+type LightboxPhoto = { url: string; caption: string };
+
+// Captions name the exact item each photo is evidence for (e.g. "Inside
+// oven", not a broad zone like "Kitchen") so there's no guessing what a
+// thumbnail is supposed to show while scoring. Clicking a thumbnail opens
+// it full-size in the shared lightbox (see PhotoLightbox) for a closer look.
+function PhotoStrip({
+  photos,
+  onOpen,
+}: {
+  photos: { photo_url: string | null; item: { name: string } | null }[];
+  onOpen: (photo: LightboxPhoto) => void;
+}) {
   const withPhotos = photos.filter((c): c is typeof c & { photo_url: string } => !!c.photo_url);
   if (withPhotos.length === 0) return null;
   return (
-    <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
-      {withPhotos.map((c, i) => (
-        <Image
-          key={i}
-          src={c.photo_url}
-          alt={c.item?.name ?? "Checklist photo"}
-          title={c.item?.name ?? undefined}
-          width={72}
-          height={72}
-          unoptimized
-          style={{ objectFit: "cover", borderRadius: 8, border: "1.5px solid var(--line)" }}
+    <div style={{ marginTop: 8, display: "flex", gap: 10, flexWrap: "wrap" }}>
+      {withPhotos.map((c, i) => {
+        const caption = c.item?.name ?? "Checklist photo";
+        return (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onOpen({ url: c.photo_url, caption })}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "zoom-in",
+              textAlign: "center",
+              width: 88,
+            }}
+          >
+            <Image
+              src={c.photo_url}
+              alt={caption}
+              width={88}
+              height={88}
+              unoptimized
+              style={{ objectFit: "cover", borderRadius: 8, border: "1.5px solid var(--line)" }}
+            />
+            <span style={{ display: "block", fontSize: 11, color: "#6a746c", marginTop: 3, lineHeight: 1.25 }}>
+              {caption}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Full-size view with click-to-cycle zoom, for verifying photo evidence
+// closely while scoring without leaving the page.
+function PhotoLightbox({ photo, onClose }: { photo: LightboxPhoto; onClose: () => void }) {
+  const [zoom, setZoom] = useState(1);
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={photo.caption}
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(20, 20, 18, 0.88)",
+        zIndex: 1000,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        style={{ maxWidth: "90vw", maxHeight: "78vh", overflow: "auto" }}
+        onClick={(e) => {
+          e.stopPropagation();
+          setZoom((z) => (z >= 3 ? 1 : z + 1));
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- lightbox needs free transform/scroll, not next/image's fixed-box layout */}
+        <img
+          src={photo.url}
+          alt={photo.caption}
+          style={{
+            display: "block",
+            maxWidth: "90vw",
+            cursor: zoom >= 3 ? "zoom-out" : "zoom-in",
+            transform: `scale(${zoom})`,
+            transformOrigin: "top center",
+            transition: "transform 0.15s ease",
+          }}
         />
-      ))}
+      </div>
+      <div
+        style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", justifyContent: "center" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span style={{ color: "#fff", fontSize: 13 }}>{photo.caption}</span>
+        <button
+          type="button"
+          className="btn ghost"
+          onClick={() => setZoom((z) => Math.max(1, z - 0.5))}
+          style={{ padding: "4px 12px" }}
+        >
+          −
+        </button>
+        <span style={{ color: "#fff", fontSize: 12 }}>{Math.round(zoom * 100)}%</span>
+        <button
+          type="button"
+          className="btn ghost"
+          onClick={() => setZoom((z) => Math.min(4, z + 0.5))}
+          style={{ padding: "4px 12px" }}
+        >
+          +
+        </button>
+        <button type="button" className="btn ghost" onClick={onClose} style={{ padding: "4px 12px" }}>
+          Close
+        </button>
+      </div>
     </div>
   );
 }
@@ -91,12 +193,7 @@ export default function ScoreBookingRow({ booking }: { booking: ScorableBooking 
   const [state, formAction, pending] = useActionState(action, initialState);
   const score = booking.visit_score;
   const checkin = booking.visit_checkin;
-
-  // Standard Clean rotation: any entry whose item carries a rotation_zone
-  // tells us which zone applied to this visit (see ChecklistSection.tsx).
-  const rotationZone = booking.checklist.find((c) => c.item?.rotation_zone)?.item?.rotation_zone as
-    | RotationZone
-    | undefined;
+  const [lightbox, setLightbox] = useState<LightboxPhoto | null>(null);
 
   const homeSecuredEntry = booking.checklist.find((c) => c.item?.name === HOME_SECURED_ITEM_NAME);
   const qualityChecklist = booking.checklist.filter((c) => c.item?.name !== HOME_SECURED_ITEM_NAME);
@@ -108,9 +205,8 @@ export default function ScoreBookingRow({ booking }: { booking: ScorableBooking 
         <>
           <p style={{ fontSize: 12, color: "#9aa49d" }}>
             Checklist: {qualityCompleted}/{qualityChecklist.length} completed
-            {rotationZone && ` · Detail zone: ${ROTATION_ZONE_LABELS[rotationZone]}`}
           </p>
-          <PhotoStrip photos={qualityChecklist} />
+          <PhotoStrip photos={qualityChecklist} onOpen={setLightbox} />
         </>
       ) : (
         <p style={{ fontSize: 12, color: "#9aa49d" }}>No checklist recorded for this visit type.</p>
@@ -155,7 +251,7 @@ export default function ScoreBookingRow({ booking }: { booking: ScorableBooking 
           Home secured on exit:{" "}
           {homeSecuredEntry ? (homeSecuredEntry.completed ? "Confirmed" : "Not confirmed") : "Not recorded"}
         </p>
-        {homeSecuredEntry && <PhotoStrip photos={[homeSecuredEntry]} />}
+        {homeSecuredEntry && <PhotoStrip photos={[homeSecuredEntry]} onOpen={setLightbox} />}
       </>
     ),
   };
@@ -254,6 +350,8 @@ export default function ScoreBookingRow({ booking }: { booking: ScorableBooking 
           )}
         </div>
       </form>
+
+      {lightbox && <PhotoLightbox photo={lightbox} onClose={() => setLightbox(null)} />}
     </div>
   );
 }

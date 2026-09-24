@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { stampPhotoWithTimestamp } from "@/lib/imageStamp";
+import { businessTimestampLabel } from "@/lib/businessTime";
 
 export type ChecklistActionState = {
   error?: string;
@@ -60,11 +62,15 @@ export async function uploadChecklistPhotoAction(
     return { error: "Choose a photo to upload." };
   }
 
-  const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
-  const path = `${bookingId}/${checklistItemId}-${Date.now()}.${ext}`;
+  // Every upload gets re-encoded to JPEG with a visible timestamp burned
+  // into the image itself -- not just upload metadata -- so the timing of
+  // a checklist photo can't be disputed later. Always .jpg regardless of
+  // the source format/extension since stampPhotoWithTimestamp re-encodes.
+  const path = `${bookingId}/${checklistItemId}-${Date.now()}.jpg`;
+  const stamped = await stampPhotoWithTimestamp(Buffer.from(await file.arrayBuffer()), businessTimestampLabel());
 
-  const { error: uploadError } = await supabase.storage.from("visit-photos").upload(path, file, {
-    contentType: file.type || "image/jpeg",
+  const { error: uploadError } = await supabase.storage.from("visit-photos").upload(path, stamped, {
+    contentType: "image/jpeg",
   });
   if (uploadError) return { error: uploadError.message };
 
