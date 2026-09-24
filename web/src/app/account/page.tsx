@@ -14,7 +14,7 @@ export default async function AccountOverviewPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: subscription }, { data: bookings }, { count: propertyCount }] =
+  const [{ data: subscription }, { data: bookings }, { data: pastBookings }, { count: propertyCount }] =
     await Promise.all([
       supabase
         .from("subscriptions")
@@ -27,8 +27,15 @@ export default async function AccountOverviewPage() {
         .select("id, service_type, scheduled_date, time_window, status, properties(address_line1, city)")
         .eq("customer_id", user!.id)
         .gte("scheduled_date", businessDateISO())
-        .neq("status", "cancelled")
+        .not("status", "in", "(cancelled,completed)")
         .order("scheduled_date", { ascending: true })
+        .limit(5),
+      supabase
+        .from("bookings")
+        .select("id, service_type, scheduled_date, time_window, status, properties(address_line1, city)")
+        .eq("customer_id", user!.id)
+        .eq("status", "completed")
+        .order("scheduled_date", { ascending: false })
         .limit(5),
       supabase
         .from("properties")
@@ -81,6 +88,17 @@ export default async function AccountOverviewPage() {
           </div>
         )}
       </div>
+
+      {pastBookings && pastBookings.length > 0 && (
+        <div style={{ marginTop: 40 }}>
+          <h3>Past visits</h3>
+          <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
+            {pastBookings.map((b) => (
+              <BookingCard key={b.id} booking={b} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
