@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import BookingCard from "@/components/account/BookingCard";
+import { businessDateISO } from "@/lib/businessTime";
 
 export const metadata: Metadata = {
   title: "My Account",
@@ -25,7 +26,7 @@ export default async function AccountOverviewPage() {
         .from("bookings")
         .select("id, service_type, scheduled_date, time_window, status, properties(address_line1, city)")
         .eq("customer_id", user!.id)
-        .gte("scheduled_date", new Date().toISOString().slice(0, 10))
+        .gte("scheduled_date", businessDateISO())
         .neq("status", "cancelled")
         .order("scheduled_date", { ascending: true })
         .limit(5),

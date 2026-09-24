@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
+import { businessDateISO } from "@/lib/businessTime";
 
 export const metadata: Metadata = {
   title: "Admin · Overview",
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 
 export default async function AdminOverviewPage() {
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = businessDateISO();
 
   const [
     { count: pendingCount },

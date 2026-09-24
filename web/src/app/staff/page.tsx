@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import { bonusForVisit, VISIT_SCORE_EVENTS } from "@/lib/visitScoring";
+import { businessDateAnchor } from "@/lib/businessTime";
 
 export const metadata: Metadata = {
   title: "Staff · Overview",
@@ -18,16 +19,19 @@ export default async function StaffOverviewPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const now = new Date();
+  // Anchored to Central time (businessDateAnchor), then all further
+  // arithmetic stays in UTC getters/setters -- once anchored to the right
+  // calendar day, that math doesn't need to cross timezones again.
+  const now = businessDateAnchor();
   const today = dateOnly(now);
 
   const weekStart = new Date(now);
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  weekStart.setUTCDate(weekStart.getUTCDate() - weekStart.getUTCDay());
   const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 7);
+  weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
 
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
 
   const [{ count: todayCount }, { count: weekCount }, { count: completedCount }, { data: upcoming }, { data: recentScores }] =
     await Promise.all([

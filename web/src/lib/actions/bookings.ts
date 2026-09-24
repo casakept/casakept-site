@@ -10,6 +10,7 @@ import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import { sendNotificationEmail } from "@/lib/email/send";
 import { bookingConfirmedEmail, bookingCancelledEmail } from "@/lib/email/templates";
 import { PRODUCT_CATEGORIES_BY_SERVICE, PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
+import { businessDateISO } from "@/lib/businessTime";
 import type { Database } from "@/lib/supabase/database.types";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
@@ -46,9 +47,7 @@ export async function createBookingAction(
   if (!SCHEDULE_WINDOWS.has(timeWindow)) {
     return { error: "Choose a valid time window." };
   }
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (new Date(scheduledDate) < today) {
+  if (scheduledDate < businessDateISO()) {
     return { error: "Choose a date today or later." };
   }
 

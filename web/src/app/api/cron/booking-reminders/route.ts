@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import { sendNotificationEmail } from "@/lib/email/send";
 import { bookingReminderEmail } from "@/lib/email/templates";
+import { businessDateAnchor } from "@/lib/businessTime";
 
 export const runtime = "nodejs";
 
@@ -25,8 +26,8 @@ export async function GET(request: Request) {
 
   const supabase = createServiceClient();
 
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrow = businessDateAnchor();
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
   const tomorrowDate = tomorrow.toISOString().slice(0, 10);
 
   const { data: bookings, error: bookingsError } = await supabase

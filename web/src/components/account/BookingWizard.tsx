@@ -8,6 +8,7 @@ import { StripePaymentForm } from "@/components/stripe/PaymentForm";
 import ServiceDetailModal from "@/components/account/ServiceDetailModal";
 import { SERVICE_CATEGORIES } from "@/lib/serviceCategories";
 import { PRODUCT_CATEGORIES_BY_SERVICE, PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
+import { businessDateISO } from "@/lib/businessTime";
 
 type Property = { id: string; label: string | null; address_line1: string; city: string };
 type Service = {
@@ -122,7 +123,7 @@ export default function BookingWizard({
     return selectedService.base_price_cents;
   }, [selectedService, coverage, hasSubscription, extraServicesDiscountPct]);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = businessDateISO();
 
   const applicableCategories = selectedService
     ? PRODUCT_CATEGORIES_BY_SERVICE[selectedService.service_type as keyof typeof PRODUCT_CATEGORIES_BY_SERVICE] ?? []
