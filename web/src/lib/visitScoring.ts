@@ -5,11 +5,40 @@
 // manually by an admin, and the bonus figure is informational (what's
 // owed), not an automated payout.
 
+// Text below is verbatim from the internal Crew Performance Scorecard doc
+// (v1, 2026) so the admin scoring UI matches the rubric crews are actually
+// held to, not a paraphrase that can drift out of sync with it.
 export const SCORE_CATEGORIES = [
-  { key: "quality_score", label: "Quality", max: 40 },
-  { key: "customer_score", label: "Customer", max: 25 },
-  { key: "timeliness_score", label: "Timeliness", max: 20 },
-  { key: "professionalism_score", label: "Professionalism", max: 15 },
+  {
+    key: "quality_score",
+    label: "Quality",
+    max: 40,
+    criteria:
+      "Checklist 100% completed with photo verification on required items; deep-clean items done to standard.",
+    source: "App checklist + photo review. Random QA audit of 10% of visits.",
+  },
+  {
+    key: "customer_score",
+    label: "Customer",
+    max: 25,
+    criteria: "Post-visit rating (1–5 stars) and comments; compliments add, complaints subtract.",
+    source: "Automated CSAT text after every visit. No response = neutral, not negative.",
+  },
+  {
+    key: "timeliness_score",
+    label: "Timeliness",
+    max: 20,
+    criteria: "Arrival inside the promised window; visit completed within scheduled duration ±20%.",
+    source: "GPS check-in/check-out. Traffic delays flagged to dispatch don't count against you.",
+  },
+  {
+    key: "professionalism_score",
+    label: "Professionalism",
+    max: 15,
+    criteria:
+      "Photo quality & visit notes, uniform, supplies & equipment care, home secured on exit (doors, alarm, pets).",
+    source: "Photo review + spot audits.",
+  },
 ] as const;
 
 export type ScoreCategoryKey = (typeof SCORE_CATEGORIES)[number]["key"];
