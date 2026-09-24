@@ -7,6 +7,7 @@ import { signOutAction } from "@/lib/actions/auth";
 const LINKS = [
   { href: "/staff", label: "Overview" },
   { href: "/staff/jobs", label: "My jobs" },
+  { href: "/staff/scores", label: "My scores" },
   { href: "/staff/availability", label: "Availability" },
   { href: "/staff/bonuses", label: "My bonuses" },
 ];

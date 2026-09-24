@@ -153,7 +153,12 @@ export default async function StaffOverviewPage() {
       </div>
 
       <div style={{ marginTop: 40 }}>
-        <h3>My score</h3>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+          <h3>My score</h3>
+          <Link href="/staff/scores" style={{ fontSize: 13 }}>
+            See full breakdown &amp; notes →
+          </Link>
+        </div>
         {weekAverage !== null ? (
           <div className="stat-row" style={{ marginTop: 14 }}>
             <div className="stat">
