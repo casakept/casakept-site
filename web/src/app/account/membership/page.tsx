@@ -4,19 +4,19 @@ import SubscribeButton from "@/components/account/SubscribeButton";
 import CancelMembershipButton from "@/components/account/CancelMembershipButton";
 import PastDuePaymentBanner from "@/components/account/PastDuePaymentBanner";
 import { entitlementPeriodFor } from "@/lib/entitlements";
+import { SERVICE_LABELS, FREQUENCY_LABELS } from "@/lib/serviceLabels";
+import type { Database } from "@/lib/supabase/database.types";
 
 export const metadata: Metadata = {
   title: "Membership",
 };
 
-const SERVICE_LABELS: Record<string, string> = {
-  standard_clean: "Standard clean",
-  deep_clean: "Deep clean",
-  laundry: "Laundry bag",
-  grocery: "Grocery run",
-  fridge_restock: "Fridge restock",
-  errand: "Errand",
-};
+const SERVICE_TYPE_ORDER = Object.keys(SERVICE_LABELS) as Database["public"]["Enums"]["service_type"][];
+
+// Floor rather than round, matching the public pricing page's display.
+function formatCents(cents: number): string {
+  return `$${Math.floor(cents / 100)}`;
+}
 
 export default async function MembershipPage() {
   const supabase = await createClient();
@@ -107,9 +107,19 @@ export default async function MembershipPage() {
 
   const { data: plans } = await supabase
     .from("membership_plans")
-    .select("id, slug, name, monthly_price_cents, description, extra_services_discount_pct")
+    .select("id, slug, name, monthly_price_cents, description, extra_services_discount_pct, perks")
     .eq("active", true)
     .order("sort_order", { ascending: true });
+
+  const [{ data: entitlements }, { data: services }] = await Promise.all([
+    supabase
+      .from("plan_entitlements")
+      .select("plan_id, service_type, quantity, frequency")
+      .in("plan_id", (plans ?? []).map((p) => p.id)),
+    supabase.from("services").select("service_type, base_price_cents").eq("active", true),
+  ]);
+
+  const servicePriceByType = new Map((services ?? []).map((s) => [s.service_type, s.base_price_cents]));
 
   return (
     <div>
@@ -119,21 +129,61 @@ export default async function MembershipPage() {
         scheduling, and a member discount on everything else.
       </p>
       <div className="tiers" style={{ marginTop: 22 }}>
-        {plans?.map((plan) => (
-          <div className={`tier${plan.slug === "casa-familia" ? " featured" : ""}`} key={plan.id}>
-            {plan.slug === "casa-familia" && <span className="badge">Most popular</span>}
-            <h3>{plan.name}</h3>
-            <div className="price">
-              ${(plan.monthly_price_cents / 100).toFixed(0)}
-              <small>/mo</small>
+        {plans?.map((plan) => {
+          const planEntitlements = (entitlements ?? [])
+            .filter((e) => e.plan_id === plan.id)
+            .slice()
+            .sort((a, b) => SERVICE_TYPE_ORDER.indexOf(a.service_type) - SERVICE_TYPE_ORDER.indexOf(b.service_type));
+
+          // What these same visits would cost booked one-off, so the
+          // membership price can be shown against it -- plan_entitlements
+          // quantities are already "per calendar month" except quarterly
+          // ones, which need dividing back down to a monthly rate.
+          const alaCarteMonthlyCents = planEntitlements.reduce((sum, e) => {
+            const price = servicePriceByType.get(e.service_type) ?? 0;
+            const monthlyQty = e.frequency === "quarterly" ? e.quantity / 3 : e.quantity;
+            return sum + price * monthlyQty;
+          }, 0);
+          const savingsCents = alaCarteMonthlyCents - plan.monthly_price_cents;
+
+          return (
+            <div className={`tier${plan.slug === "casa-familia" ? " featured" : ""}`} key={plan.id}>
+              {plan.slug === "casa-familia" && <span className="badge">Most popular</span>}
+              <h3>{plan.name}</h3>
+              <div className="price">
+                {formatCents(plan.monthly_price_cents)}
+                <small>/mo</small>
+              </div>
+              {savingsCents > 0 && (
+                <p style={{ fontSize: 12, color: "var(--marigold)", fontWeight: 700, marginTop: 4 }}>
+                  ~{formatCents(savingsCents)}/mo less than booking these one-off ({formatCents(alaCarteMonthlyCents)}/mo)
+                </p>
+              )}
+              <ul>
+                {planEntitlements.map((e) => (
+                  <li key={e.service_type}>
+                    {e.quantity}× {SERVICE_LABELS[e.service_type] ?? e.service_type} — {FREQUENCY_LABELS[e.frequency]}
+                  </li>
+                ))}
+                <li>{plan.extra_services_discount_pct}% off all other services</li>
+                {plan.perks.map((perk) => (
+                  <li key={perk}>{perk}</li>
+                ))}
+              </ul>
+              <p
+                style={{
+                  fontSize: 12,
+                  color: plan.slug === "casa-familia" ? "#aebbaf" : "#7a8078",
+                  fontStyle: "italic",
+                  marginTop: 10,
+                }}
+              >
+                {plan.description}
+              </p>
+              <SubscribeButton planId={plan.id} />
             </div>
-            <p style={{ fontSize: 13 }}>{plan.description}</p>
-            <p style={{ fontSize: 12, marginTop: 10, opacity: 0.8 }}>
-              {plan.extra_services_discount_pct}% off other services
-            </p>
-            <SubscribeButton planId={plan.id} />
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
