@@ -5,6 +5,7 @@ import CancelMembershipButton from "@/components/account/CancelMembershipButton"
 import PastDuePaymentBanner from "@/components/account/PastDuePaymentBanner";
 import MembershipPlansPicker, { type PickerPlan } from "@/components/account/MembershipPlansPicker";
 import { entitlementPeriodFor } from "@/lib/entitlements";
+import { effectiveCancelDate } from "@/lib/membershipCancellation";
 import { SERVICE_LABELS } from "@/lib/serviceLabels";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -23,7 +24,7 @@ export default async function MembershipPage() {
   const { data: subscription } = await supabase
     .from("subscriptions")
     .select(
-      "id, status, created_at, current_period_start, current_period_end, minimum_term_end, cancel_at_period_end, billing_cadence, stripe_subscription_id, membership_plans(id, name, monthly_price_cents, annual_price_cents)"
+      "id, status, created_at, current_period_start, current_period_end, minimum_term_end, cancel_at, billing_cadence, stripe_subscription_id, membership_plans(id, name, monthly_price_cents, annual_price_cents)"
     )
     .eq("customer_id", user!.id)
     .in("status", ["active", "past_due"])
@@ -69,13 +70,19 @@ export default async function MembershipPage() {
             Current period ends{" "}
             {new Date(subscription.current_period_end).toLocaleDateString()}.
           </p>
-          <p>
-            Minimum term through{" "}
-            {new Date(subscription.minimum_term_end).toLocaleDateString()}.
-          </p>
+          {!isAnnual && (
+            <p>
+              Minimum term through{" "}
+              {new Date(subscription.minimum_term_end).toLocaleDateString()}.
+            </p>
+          )}
           <CancelMembershipButton
-            cancelAtPeriodEnd={subscription.cancel_at_period_end}
-            currentPeriodEnd={subscription.current_period_end}
+            cancelAt={subscription.cancel_at}
+            effectiveCancelPreview={effectiveCancelDate({
+              billingCadence: subscription.billing_cadence,
+              minimumTermEnd: subscription.minimum_term_end,
+              currentPeriodEnd: subscription.current_period_end,
+            }).toISOString()}
           />
         </div>
 

@@ -8,11 +8,18 @@ import {
 } from "@/lib/actions/membership";
 
 export default function CancelMembershipButton({
-  cancelAtPeriodEnd,
-  currentPeriodEnd,
+  cancelAt,
+  effectiveCancelPreview,
 }: {
-  cancelAtPeriodEnd: boolean;
-  currentPeriodEnd: string;
+  // Non-null once a cancellation is actually scheduled with Stripe (see
+  // cancelSubscriptionAction) -- the real date access ends.
+  cancelAt: string | null;
+  // What effectiveCancelPreview would become if they cancel right now --
+  // computed server-side the same way cancelSubscriptionAction does, so
+  // this button can preview it before they confirm (for a monthly
+  // membership still inside its minimum term, that's the end of the term,
+  // not the next renewal).
+  effectiveCancelPreview: string;
 }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
@@ -45,12 +52,12 @@ export default function CancelMembershipButton({
     router.refresh();
   }
 
-  if (cancelAtPeriodEnd) {
+  if (cancelAt) {
     return (
       <div style={{ marginTop: 14 }}>
         <p style={{ color: "#a15c00" }}>
           Your membership is set to end on{" "}
-          {new Date(currentPeriodEnd).toLocaleDateString()}.
+          {new Date(cancelAt).toLocaleDateString()}.
         </p>
         {error && (
           <p className="form-msg error" style={{ marginTop: 8 }}>
@@ -75,7 +82,7 @@ export default function CancelMembershipButton({
       <div style={{ marginTop: 14 }}>
         <p>
           Cancel your membership? You&apos;ll keep access through{" "}
-          {new Date(currentPeriodEnd).toLocaleDateString()}, then it will end.
+          {new Date(effectiveCancelPreview).toLocaleDateString()}, then it will end.
         </p>
         {error && (
           <p className="form-msg error" style={{ marginTop: 8 }}>

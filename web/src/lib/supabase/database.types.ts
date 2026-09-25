@@ -1048,6 +1048,7 @@ export type Database = {
       subscriptions: {
         Row: {
           billing_cadence: string
+          cancel_at: string | null
           cancel_at_period_end: boolean
           cancelled_at: string | null
           created_at: string
@@ -1064,6 +1065,7 @@ export type Database = {
         }
         Insert: {
           billing_cadence?: string
+          cancel_at?: string | null
           cancel_at_period_end?: boolean
           cancelled_at?: string | null
           created_at?: string
@@ -1080,6 +1082,7 @@ export type Database = {
         }
         Update: {
           billing_cadence?: string
+          cancel_at?: string | null
           cancel_at_period_end?: boolean
           cancelled_at?: string | null
           created_at?: string

@@ -139,6 +139,14 @@ async function syncSubscription(supabase: ServiceClient, sub: Stripe.Subscriptio
         status: mappedStatus,
         current_period_start: periodStart.toISOString(),
         current_period_end: periodEnd.toISOString(),
+        // Was never actually synced here before -- cancel_at_period_end
+        // stayed at its insert-time default forever, so the "your
+        // membership is set to end on..." UI could never have reflected
+        // a real cancellation. cancel_at is the new minimum-term-aware
+        // mechanism (see cancelSubscriptionAction); both get synced from
+        // whatever Stripe reports as the source of truth.
+        cancel_at_period_end: sub.cancel_at_period_end,
+        cancel_at: sub.cancel_at ? new Date(sub.cancel_at * 1000).toISOString() : null,
       })
       .eq("id", existing.id);
     if (error) console.error("syncSubscription update failed:", error);

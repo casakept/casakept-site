@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getOrCreateStripeCustomerId } from "@/lib/stripe/customer";
 import { stripe } from "@/lib/stripe/server";
+import { effectiveCancelDate } from "@/lib/membershipCancellation";
 import type Stripe from "stripe";
 
 export type BillingCadence = "monthly" | "annual";
@@ -88,11 +89,23 @@ export async function startSubscriptionAction(
 
 export type MembershipActionResult = { error: string } | { success: true };
 
-// Schedules cancellation for the end of the current billing period (rather
-// than cancelling immediately) so the member keeps access/entitlements
-// they've already paid for. The local `subscriptions` row is NOT updated
-// here — the webhook's customer.subscription.updated handler syncs
-// cancel_at_period_end once Stripe confirms the change.
+// Schedules cancellation -- never immediately, and never with a refund or
+// proration, so the member always keeps access through whatever they've
+// already committed to paying for:
+//   - Annual: already paid in full for the year, so it just stops at the
+//     existing current_period_end. The minimum term is redundant for them
+//     (they can't get out of a year they've already paid for early
+//     anyway) and is skipped entirely.
+//   - Monthly: carries a minimum-term commitment (membership_plans.
+//     minimum_term_months, default 3). Cancelling early doesn't end
+//     access immediately -- it keeps renewing and billing normally
+//     through the end of that term, then stops. Once the minimum term
+//     has already passed, this is just their next normal renewal date.
+// Stripe's cancel_at (a specific future timestamp) is what makes this
+// work: unlike cancel_at_period_end (which only ever means "the very next
+// renewal"), the subscription keeps renewing on schedule right up until
+// cancel_at, then Stripe cancels it automatically -- verified directly
+// against the Stripe API before relying on it here.
 export async function cancelSubscriptionAction(): Promise<MembershipActionResult> {
   const supabase = await createClient();
   const {
@@ -102,7 +115,7 @@ export async function cancelSubscriptionAction(): Promise<MembershipActionResult
 
   const { data: subscription } = await supabase
     .from("subscriptions")
-    .select("id, stripe_subscription_id, minimum_term_end, cancel_at_period_end")
+    .select("id, stripe_subscription_id, minimum_term_end, current_period_end, cancel_at, billing_cadence")
     .eq("customer_id", user.id)
     .in("status", ["active", "past_due"])
     .maybeSingle();
@@ -110,19 +123,18 @@ export async function cancelSubscriptionAction(): Promise<MembershipActionResult
   if (!subscription || !subscription.stripe_subscription_id) {
     return { error: "You don't have an active membership to cancel." };
   }
-  if (subscription.cancel_at_period_end) {
+  if (subscription.cancel_at) {
     return { error: "Your membership is already scheduled to cancel." };
   }
-  if (new Date(subscription.minimum_term_end) > new Date()) {
-    return {
-      error: `Your membership has a minimum term through ${new Date(
-        subscription.minimum_term_end
-      ).toLocaleDateString()}. You can cancel starting then.`,
-    };
-  }
+
+  const effectiveCancelAt = effectiveCancelDate({
+    billingCadence: subscription.billing_cadence,
+    minimumTermEnd: subscription.minimum_term_end,
+    currentPeriodEnd: subscription.current_period_end,
+  });
 
   await stripe.subscriptions.update(subscription.stripe_subscription_id, {
-    cancel_at_period_end: true,
+    cancel_at: Math.floor(effectiveCancelAt.getTime() / 1000),
   });
 
   revalidatePath("/account/membership");
@@ -139,17 +151,17 @@ export async function resumeSubscriptionAction(): Promise<MembershipActionResult
 
   const { data: subscription } = await supabase
     .from("subscriptions")
-    .select("id, stripe_subscription_id, cancel_at_period_end")
+    .select("id, stripe_subscription_id, cancel_at")
     .eq("customer_id", user.id)
     .in("status", ["active", "past_due"])
     .maybeSingle();
 
-  if (!subscription || !subscription.stripe_subscription_id || !subscription.cancel_at_period_end) {
+  if (!subscription || !subscription.stripe_subscription_id || !subscription.cancel_at) {
     return { error: "Your membership isn't scheduled to cancel." };
   }
 
   await stripe.subscriptions.update(subscription.stripe_subscription_id, {
-    cancel_at_period_end: false,
+    cancel_at: null,
   });
 
   revalidatePath("/account/membership");

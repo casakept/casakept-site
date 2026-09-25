@@ -36,7 +36,7 @@ export default async function AdminCustomerDetailPage({ params }: PageProps<"/ad
     supabase
       .from("subscriptions")
       .select(
-        "status, current_period_end, minimum_term_end, cancel_at_period_end, membership_plans(name, monthly_price_cents)"
+        "status, current_period_end, minimum_term_end, cancel_at, billing_cadence, membership_plans(name, monthly_price_cents, annual_price_cents)"
       )
       .eq("customer_id", id)
       .order("created_at", { ascending: false })
@@ -89,13 +89,25 @@ export default async function AdminCustomerDetailPage({ params }: PageProps<"/ad
             <span className={`status-badge ${SUBSCRIPTION_BADGE[subscription.status] ?? "cancelled"}`}>
               {subscription.status.replace("_", " ")}
             </span>
-            <p className="price-line">${(subscription.membership_plans.monthly_price_cents / 100).toFixed(0)}/mo</p>
+            <p className="price-line">
+              $
+              {(
+                (subscription.billing_cadence === "annual"
+                  ? (subscription.membership_plans.annual_price_cents ?? subscription.membership_plans.monthly_price_cents)
+                  : subscription.membership_plans.monthly_price_cents) / 100
+              ).toFixed(0)}
+              {subscription.billing_cadence === "annual" ? "/yr" : "/mo"}
+            </p>
             <p style={{ marginTop: 10 }}>
               Current period ends {new Date(subscription.current_period_end).toLocaleDateString()}.
             </p>
-            <p>Minimum term through {new Date(subscription.minimum_term_end).toLocaleDateString()}.</p>
-            {subscription.cancel_at_period_end && (
-              <p style={{ color: "var(--chile)" }}>Cancels at period end.</p>
+            {subscription.billing_cadence !== "annual" && (
+              <p>Minimum term through {new Date(subscription.minimum_term_end).toLocaleDateString()}.</p>
+            )}
+            {subscription.cancel_at && (
+              <p style={{ color: "var(--chile)" }}>
+                Cancels {new Date(subscription.cancel_at).toLocaleDateString()}.
+              </p>
             )}
           </div>
         )}
