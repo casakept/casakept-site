@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { stripe } from "@/lib/stripe/server";
 import CancelMembershipButton from "@/components/account/CancelMembershipButton";
 import PastDuePaymentBanner from "@/components/account/PastDuePaymentBanner";
 import MembershipPlansPicker, { type PickerPlan } from "@/components/account/MembershipPlansPicker";
@@ -22,7 +23,7 @@ export default async function MembershipPage() {
   const { data: subscription } = await supabase
     .from("subscriptions")
     .select(
-      "id, status, created_at, current_period_start, current_period_end, minimum_term_end, cancel_at_period_end, billing_cadence, membership_plans(id, name, monthly_price_cents, annual_price_cents)"
+      "id, status, created_at, current_period_start, current_period_end, minimum_term_end, cancel_at_period_end, billing_cadence, stripe_subscription_id, membership_plans(id, name, monthly_price_cents, annual_price_cents)"
     )
     .eq("customer_id", user!.id)
     .in("status", ["active", "past_due"])
@@ -32,7 +33,7 @@ export default async function MembershipPage() {
     const plan = subscription.membership_plans;
     const isAnnual = subscription.billing_cadence === "annual";
     const priceCents = isAnnual ? (plan.annual_price_cents ?? plan.monthly_price_cents) : plan.monthly_price_cents;
-    const [{ data: entitlements }, { data: usage }] = await Promise.all([
+    const [{ data: entitlements }, { data: usage }, invoices] = await Promise.all([
       supabase
         .from("plan_entitlements")
         .select("service_type, quantity, frequency")
@@ -45,6 +46,13 @@ export default async function MembershipPage() {
         .from("entitlement_usage")
         .select("service_type, used_count, included_count, billing_period_start")
         .eq("subscription_id", subscription.id),
+      // Read straight from Stripe rather than mirroring invoices into our
+      // own DB -- Stripe is already the source of truth for billing, and
+      // this is the only place that needs the history, so there's nothing
+      // to gain from a local copy that could drift.
+      subscription.stripe_subscription_id
+        ? stripe.invoices.list({ subscription: subscription.stripe_subscription_id, limit: 12 })
+        : Promise.resolve(null),
     ]);
 
     return (
@@ -96,6 +104,38 @@ export default async function MembershipPage() {
             );
           })}
         </div>
+
+        <h3 style={{ marginTop: 30 }}>Billing history</h3>
+        {!invoices || invoices.data.length === 0 ? (
+          <p style={{ marginTop: 10, color: "#6a746c" }}>No invoices yet.</p>
+        ) : (
+          <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
+            {invoices.data.map((invoice) => (
+              <div key={invoice.id} className="pricerow">
+                <b>
+                  {new Date(invoice.created * 1000).toLocaleDateString(undefined, {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </b>
+                <div className="dots"></div>
+                <span>
+                  ${(invoice.amount_paid / 100).toFixed(2)} ·{" "}
+                  {invoice.status === "paid" ? "Paid" : invoice.status}
+                  {invoice.hosted_invoice_url && (
+                    <>
+                      {" · "}
+                      <a href={invoice.hosted_invoice_url} target="_blank" rel="noopener noreferrer">
+                        View invoice
+                      </a>
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
