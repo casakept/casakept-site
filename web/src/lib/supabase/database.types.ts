@@ -553,6 +553,7 @@ export type Database = {
       membership_plans: {
         Row: {
           active: boolean
+          annual_price_cents: number | null
           created_at: string
           description: string | null
           extra_services_discount_pct: number
@@ -564,10 +565,12 @@ export type Database = {
           slug: string
           sort_order: number
           stripe_price_id: string | null
+          stripe_price_id_annual: string | null
           updated_at: string
         }
         Insert: {
           active?: boolean
+          annual_price_cents?: number | null
           created_at?: string
           description?: string | null
           extra_services_discount_pct?: number
@@ -579,10 +582,12 @@ export type Database = {
           slug: string
           sort_order?: number
           stripe_price_id?: string | null
+          stripe_price_id_annual?: string | null
           updated_at?: string
         }
         Update: {
           active?: boolean
+          annual_price_cents?: number | null
           created_at?: string
           description?: string | null
           extra_services_discount_pct?: number
@@ -594,6 +599,7 @@ export type Database = {
           slug?: string
           sort_order?: number
           stripe_price_id?: string | null
+          stripe_price_id_annual?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1041,6 +1047,7 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          billing_cadence: string
           cancel_at_period_end: boolean
           cancelled_at: string | null
           created_at: string
@@ -1056,6 +1063,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          billing_cadence?: string
           cancel_at_period_end?: boolean
           cancelled_at?: string | null
           created_at?: string
@@ -1071,6 +1079,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          billing_cadence?: string
           cancel_at_period_end?: boolean
           cancelled_at?: string | null
           created_at?: string

@@ -2,10 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { startSubscriptionAction } from "@/lib/actions/membership";
+import { startSubscriptionAction, type BillingCadence } from "@/lib/actions/membership";
 import { StripePaymentForm } from "@/components/stripe/PaymentForm";
 
-export default function SubscribeButton({ planId }: { planId: string }) {
+export default function SubscribeButton({
+  planId,
+  cadence = "monthly",
+}: {
+  planId: string;
+  cadence?: BillingCadence;
+}) {
   const router = useRouter();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +21,7 @@ export default function SubscribeButton({ planId }: { planId: string }) {
   async function handleJoin() {
     setStarting(true);
     setError(null);
-    const result = await startSubscriptionAction(planId);
+    const result = await startSubscriptionAction(planId, cadence);
     setStarting(false);
     if ("error" in result) {
       setError(result.error);

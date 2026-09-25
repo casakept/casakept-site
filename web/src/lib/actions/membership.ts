@@ -6,6 +6,8 @@ import { getOrCreateStripeCustomerId } from "@/lib/stripe/customer";
 import { stripe } from "@/lib/stripe/server";
 import type Stripe from "stripe";
 
+export type BillingCadence = "monthly" | "annual";
+
 export type StartSubscriptionResult =
   | { error: string }
   | { clientSecret: string; subscriptionId: string };
@@ -18,7 +20,8 @@ export type StartSubscriptionResult =
 // customer.subscription.updated in that route), since that's the only
 // trustworthy signal that payment succeeded.
 export async function startSubscriptionAction(
-  planId: string
+  planId: string,
+  cadence: BillingCadence = "monthly"
 ): Promise<StartSubscriptionResult> {
   const supabase = await createClient();
   const {
@@ -28,15 +31,18 @@ export async function startSubscriptionAction(
 
   const { data: plan } = await supabase
     .from("membership_plans")
-    .select("id, minimum_term_months, active, stripe_price_id")
+    .select("id, minimum_term_months, active, stripe_price_id, stripe_price_id_annual")
     .eq("id", planId)
     .single();
 
   if (!plan || !plan.active) {
     return { error: "That plan isn't available right now." };
   }
-  if (!plan.stripe_price_id) {
-    return { error: "That plan isn't ready for checkout yet. Contact us to join." };
+  const stripePriceId = cadence === "annual" ? plan.stripe_price_id_annual : plan.stripe_price_id;
+  if (!stripePriceId) {
+    return cadence === "annual"
+      ? { error: "Annual billing isn't available for that plan yet. Contact us to join." }
+      : { error: "That plan isn't ready for checkout yet. Contact us to join." };
   }
 
   const { data: existing } = await supabase
@@ -58,7 +64,7 @@ export async function startSubscriptionAction(
 
   const subscription = await stripe.subscriptions.create({
     customer: stripeCustomerId,
-    items: [{ price: plan.stripe_price_id }],
+    items: [{ price: stripePriceId }],
     payment_behavior: "default_incomplete",
     payment_settings: { save_default_payment_method: "on_subscription" },
     expand: ["latest_invoice.confirmation_secret"],
@@ -66,6 +72,7 @@ export async function startSubscriptionAction(
       customer_id: user.id,
       plan_id: plan.id,
       minimum_term_months: String(plan.minimum_term_months),
+      billing_cadence: cadence,
     },
   });
 

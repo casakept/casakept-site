@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import SubscribeButton from "@/components/account/SubscribeButton";
 import CancelMembershipButton from "@/components/account/CancelMembershipButton";
 import PastDuePaymentBanner from "@/components/account/PastDuePaymentBanner";
+import MembershipPlansPicker, { type PickerPlan } from "@/components/account/MembershipPlansPicker";
 import { entitlementPeriodFor } from "@/lib/entitlements";
-import { SERVICE_LABELS, FREQUENCY_LABELS } from "@/lib/serviceLabels";
+import { SERVICE_LABELS } from "@/lib/serviceLabels";
 import type { Database } from "@/lib/supabase/database.types";
 
 export const metadata: Metadata = {
@@ -12,11 +12,6 @@ export const metadata: Metadata = {
 };
 
 const SERVICE_TYPE_ORDER = Object.keys(SERVICE_LABELS) as Database["public"]["Enums"]["service_type"][];
-
-// Floor rather than round, matching the public pricing page's display.
-function formatCents(cents: number): string {
-  return `$${Math.floor(cents / 100)}`;
-}
 
 export default async function MembershipPage() {
   const supabase = await createClient();
@@ -27,7 +22,7 @@ export default async function MembershipPage() {
   const { data: subscription } = await supabase
     .from("subscriptions")
     .select(
-      "id, status, created_at, current_period_start, current_period_end, minimum_term_end, cancel_at_period_end, membership_plans(id, name, monthly_price_cents)"
+      "id, status, created_at, current_period_start, current_period_end, minimum_term_end, cancel_at_period_end, billing_cadence, membership_plans(id, name, monthly_price_cents, annual_price_cents)"
     )
     .eq("customer_id", user!.id)
     .in("status", ["active", "past_due"])
@@ -35,6 +30,8 @@ export default async function MembershipPage() {
 
   if (subscription && subscription.membership_plans) {
     const plan = subscription.membership_plans;
+    const isAnnual = subscription.billing_cadence === "annual";
+    const priceCents = isAnnual ? (plan.annual_price_cents ?? plan.monthly_price_cents) : plan.monthly_price_cents;
     const [{ data: entitlements }, { data: usage }] = await Promise.all([
       supabase
         .from("plan_entitlements")
@@ -56,7 +53,10 @@ export default async function MembershipPage() {
         {subscription.status === "past_due" && <PastDuePaymentBanner />}
         <div className="card" style={{ marginTop: 14, maxWidth: 480 }}>
           <strong style={{ color: "var(--verde)", fontSize: 18 }}>{plan.name}</strong>
-          <p className="price-line">${(plan.monthly_price_cents / 100).toFixed(0)}/mo</p>
+          <p className="price-line">
+            ${(priceCents / 100).toFixed(0)}
+            {isAnnual ? "/yr" : "/mo"}
+          </p>
           <p style={{ marginTop: 10 }}>
             Current period ends{" "}
             {new Date(subscription.current_period_end).toLocaleDateString()}.
@@ -74,12 +74,7 @@ export default async function MembershipPage() {
         <h3 style={{ marginTop: 30 }}>This period&apos;s allowances</h3>
         <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
           {entitlements?.map((e) => {
-            const period = entitlementPeriodFor(
-              e.frequency,
-              subscription.created_at,
-              subscription.current_period_start,
-              subscription.current_period_end
-            );
+            const period = entitlementPeriodFor(e.frequency, subscription.created_at, subscription.current_period_start);
             // Compare as instants, not strings -- Postgres/PostgREST may
             // serialize the stored timestamptz differently than the ISO
             // string we compute period.start as.
@@ -107,7 +102,9 @@ export default async function MembershipPage() {
 
   const { data: plans } = await supabase
     .from("membership_plans")
-    .select("id, slug, name, monthly_price_cents, description, extra_services_discount_pct, perks")
+    .select(
+      "id, slug, name, monthly_price_cents, annual_price_cents, description, extra_services_discount_pct, perks"
+    )
     .eq("active", true)
     .order("sort_order", { ascending: true });
 
@@ -121,6 +118,40 @@ export default async function MembershipPage() {
 
   const servicePriceByType = new Map((services ?? []).map((s) => [s.service_type, s.base_price_cents]));
 
+  const pickerPlans: PickerPlan[] = (plans ?? []).map((plan) => {
+    const planEntitlements = (entitlements ?? [])
+      .filter((e) => e.plan_id === plan.id)
+      .slice()
+      .sort((a, b) => SERVICE_TYPE_ORDER.indexOf(a.service_type) - SERVICE_TYPE_ORDER.indexOf(b.service_type));
+
+    // What these same visits would cost booked one-off, so the membership
+    // price can be shown against it -- plan_entitlements quantities are
+    // already "per calendar month" except quarterly ones, which need
+    // dividing back down to a monthly rate.
+    const alaCarteMonthlyCents = planEntitlements.reduce((sum, e) => {
+      const price = servicePriceByType.get(e.service_type) ?? 0;
+      const monthlyQty = e.frequency === "quarterly" ? e.quantity / 3 : e.quantity;
+      return sum + price * monthlyQty;
+    }, 0);
+
+    return {
+      id: plan.id,
+      slug: plan.slug,
+      name: plan.name,
+      description: plan.description,
+      monthlyPriceCents: plan.monthly_price_cents,
+      annualPriceCents: plan.annual_price_cents,
+      extraServicesDiscountPct: plan.extra_services_discount_pct,
+      perks: plan.perks,
+      entitlements: planEntitlements.map((e) => ({
+        serviceType: e.service_type,
+        quantity: e.quantity,
+        frequency: e.frequency,
+      })),
+      alaCarteMonthlyCents,
+    };
+  });
+
   return (
     <div>
       <h3>Choose a membership</h3>
@@ -128,63 +159,7 @@ export default async function MembershipPage() {
         Every membership includes the same crew each visit, priority
         scheduling, and a member discount on everything else.
       </p>
-      <div className="tiers" style={{ marginTop: 22 }}>
-        {plans?.map((plan) => {
-          const planEntitlements = (entitlements ?? [])
-            .filter((e) => e.plan_id === plan.id)
-            .slice()
-            .sort((a, b) => SERVICE_TYPE_ORDER.indexOf(a.service_type) - SERVICE_TYPE_ORDER.indexOf(b.service_type));
-
-          // What these same visits would cost booked one-off, so the
-          // membership price can be shown against it -- plan_entitlements
-          // quantities are already "per calendar month" except quarterly
-          // ones, which need dividing back down to a monthly rate.
-          const alaCarteMonthlyCents = planEntitlements.reduce((sum, e) => {
-            const price = servicePriceByType.get(e.service_type) ?? 0;
-            const monthlyQty = e.frequency === "quarterly" ? e.quantity / 3 : e.quantity;
-            return sum + price * monthlyQty;
-          }, 0);
-          const savingsCents = alaCarteMonthlyCents - plan.monthly_price_cents;
-
-          return (
-            <div className={`tier${plan.slug === "casa-familia" ? " featured" : ""}`} key={plan.id}>
-              {plan.slug === "casa-familia" && <span className="badge">Most popular</span>}
-              <h3>{plan.name}</h3>
-              <div className="price">
-                {formatCents(plan.monthly_price_cents)}
-                <small>/mo</small>
-              </div>
-              {savingsCents > 0 && (
-                <p style={{ fontSize: 12, color: "var(--marigold)", fontWeight: 700, marginTop: 4 }}>
-                  ~{formatCents(savingsCents)}/mo less than booking these one-off ({formatCents(alaCarteMonthlyCents)}/mo)
-                </p>
-              )}
-              <ul>
-                {planEntitlements.map((e) => (
-                  <li key={e.service_type}>
-                    {e.quantity}× {SERVICE_LABELS[e.service_type] ?? e.service_type} — {FREQUENCY_LABELS[e.frequency]}
-                  </li>
-                ))}
-                <li>{plan.extra_services_discount_pct}% off all other services</li>
-                {plan.perks.map((perk) => (
-                  <li key={perk}>{perk}</li>
-                ))}
-              </ul>
-              <p
-                style={{
-                  fontSize: 12,
-                  color: plan.slug === "casa-familia" ? "#aebbaf" : "#7a8078",
-                  fontStyle: "italic",
-                  marginTop: 10,
-                }}
-              >
-                {plan.description}
-              </p>
-              <SubscribeButton planId={plan.id} />
-            </div>
-          );
-        })}
-      </div>
+      <MembershipPlansPicker plans={pickerPlans} />
     </div>
   );
 }

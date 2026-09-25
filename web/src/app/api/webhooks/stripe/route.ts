@@ -170,6 +170,7 @@ async function syncSubscription(supabase: ServiceClient, sub: Stripe.Subscriptio
   const minimumTermMonths = Number(sub.metadata.minimum_term_months ?? "3");
   const minimumTermEnd = new Date(periodStart);
   minimumTermEnd.setMonth(minimumTermEnd.getMonth() + minimumTermMonths);
+  const billingCadence = sub.metadata.billing_cadence === "annual" ? "annual" : "monthly";
 
   const { error } = await supabase.from("subscriptions").insert({
     customer_id: customerId,
@@ -181,6 +182,7 @@ async function syncSubscription(supabase: ServiceClient, sub: Stripe.Subscriptio
     current_period_start: periodStart.toISOString(),
     current_period_end: periodEnd.toISOString(),
     minimum_term_end: minimumTermEnd.toISOString(),
+    billing_cadence: billingCadence,
   });
   if (error) {
     console.error("syncSubscription insert failed:", error);

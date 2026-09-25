@@ -20,33 +20,41 @@ export function widestFrequency(frequencies: EntitlementFrequency[]): Entitlemen
 }
 
 // plan_entitlements quantities are defined as "total included per calendar
-// month" for weekly/biweekly/monthly cadences, so those just reset with the
-// subscription's own (monthly) Stripe billing period. Quarterly entitlements
-// (e.g. Casa Completa's 1 free deep clean) need their own wider window --
-// otherwise keying usage off the monthly billing period would hand out a
-// fresh "quarterly" allowance every single month. That window is anchored
-// to the subscription's creation date so it stays stable across renewals.
+// month" for weekly/biweekly/monthly cadences, and "per quarter" for
+// quarterly ones (e.g. Casa Completa's 1 free deep clean). Every frequency
+// computes its own reset window anchored to the subscription's creation
+// date, rather than trusting the Stripe billing period directly -- that
+// used to be safe for non-quarterly frequencies only because billing was
+// always monthly, so the Stripe period happened to equal one calendar
+// month. Once annual billing exists, a year-long Stripe period would
+// otherwise hand a member one calendar month's worth of entitlements for
+// the whole year instead of resetting monthly, so this can't shortcut off
+// currentPeriodStart/End for any frequency anymore.
+const PERIOD_WIDTH_MONTHS: Record<EntitlementFrequency, number> = {
+  weekly: 1,
+  biweekly: 1,
+  monthly: 1,
+  quarterly: 3,
+};
+
 export function entitlementPeriodFor(
   frequency: EntitlementFrequency,
   subscriptionCreatedAt: string,
-  currentPeriodStart: string,
-  currentPeriodEnd: string
+  currentPeriodStart: string
 ): { start: string; end: string } {
-  if (frequency !== "quarterly") {
-    return { start: currentPeriodStart, end: currentPeriodEnd };
-  }
+  const widthMonths = PERIOD_WIDTH_MONTHS[frequency];
 
   const anchor = new Date(subscriptionCreatedAt);
   const periodStart = new Date(currentPeriodStart);
   const monthsSinceAnchor =
     (periodStart.getFullYear() - anchor.getFullYear()) * 12 +
     (periodStart.getMonth() - anchor.getMonth());
-  const quarterIndex = Math.floor(monthsSinceAnchor / 3);
+  const windowIndex = Math.floor(monthsSinceAnchor / widthMonths);
 
-  const quarterStart = new Date(anchor);
-  quarterStart.setMonth(quarterStart.getMonth() + quarterIndex * 3);
-  const quarterEnd = new Date(quarterStart);
-  quarterEnd.setMonth(quarterEnd.getMonth() + 3);
+  const windowStart = new Date(anchor);
+  windowStart.setMonth(windowStart.getMonth() + windowIndex * widthMonths);
+  const windowEnd = new Date(windowStart);
+  windowEnd.setMonth(windowEnd.getMonth() + widthMonths);
 
-  return { start: quarterStart.toISOString(), end: quarterEnd.toISOString() };
+  return { start: windowStart.toISOString(), end: windowEnd.toISOString() };
 }

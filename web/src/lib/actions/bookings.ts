@@ -134,12 +134,7 @@ export async function createBookingAction(
 
     if (includedCount > 0) {
       const frequency = widestFrequency(planEntitlements!.map((e) => e.frequency));
-      const period = entitlementPeriodFor(
-        frequency,
-        subscription.created_at,
-        subscription.current_period_start,
-        subscription.current_period_end
-      );
+      const period = entitlementPeriodFor(frequency, subscription.created_at, subscription.current_period_start);
 
       // Atomic: creates the usage row on first use and claims one unit in a
       // single statement, so two concurrent bookings can't both read

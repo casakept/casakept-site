@@ -30,7 +30,9 @@ export default async function PricingPage() {
   const [{ data: plans }, { data: services }] = await Promise.all([
     supabase
       .from("membership_plans")
-      .select("id, slug, name, description, monthly_price_cents, extra_services_discount_pct, perks")
+      .select(
+        "id, slug, name, description, monthly_price_cents, annual_price_cents, extra_services_discount_pct, perks"
+      )
       .eq("active", true)
       .order("sort_order", { ascending: true }),
     supabase
@@ -80,6 +82,11 @@ export default async function PricingPage() {
                     {formatCents(plan.monthly_price_cents)}
                     <small>/mo</small>
                   </div>
+                  {plan.annual_price_cents != null && (
+                    <p style={{ fontSize: 12, color: featured ? "#aebbaf" : "#7a8078" }}>
+                      or {formatCents(plan.annual_price_cents)}/yr — save 10% billed annually
+                    </p>
+                  )}
                   <ul>
                     {planEntitlements.map((e) => (
                       <li key={e.service_type}>
