@@ -153,7 +153,8 @@ export default async function PricingPage() {
           <p style={{ marginTop: 20, fontSize: 13, color: "#7a8078" }}>
             Pricing covers homes up to 2,500 sq ft; add $30 per visit for each additional 500 sq ft. Grocery and
             restock pricing excludes cost of groceries — billed at actual cost with a receipt photo, no markup.
-            Memberships require a three-month minimum, month-to-month thereafter.
+            Memberships renew automatically until cancelled, and require a three-month minimum, month-to-month
+            thereafter.
           </p>
         </div>
       </section>

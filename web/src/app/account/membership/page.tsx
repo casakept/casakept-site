@@ -150,7 +150,7 @@ export default async function MembershipPage() {
   const { data: plans } = await supabase
     .from("membership_plans")
     .select(
-      "id, slug, name, monthly_price_cents, annual_price_cents, description, extra_services_discount_pct, perks"
+      "id, slug, name, monthly_price_cents, annual_price_cents, description, extra_services_discount_pct, minimum_term_months, perks"
     )
     .eq("active", true)
     .order("sort_order", { ascending: true });
@@ -189,6 +189,7 @@ export default async function MembershipPage() {
       monthlyPriceCents: plan.monthly_price_cents,
       annualPriceCents: plan.annual_price_cents,
       extraServicesDiscountPct: plan.extra_services_discount_pct,
+      minimumTermMonths: plan.minimum_term_months,
       perks: plan.perks,
       entitlements: planEntitlements.map((e) => ({
         serviceType: e.service_type,

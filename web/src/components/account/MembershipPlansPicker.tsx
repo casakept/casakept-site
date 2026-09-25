@@ -19,6 +19,7 @@ export type PickerPlan = {
   monthlyPriceCents: number;
   annualPriceCents: number | null;
   extraServicesDiscountPct: number;
+  minimumTermMonths: number;
   perks: string[];
   entitlements: {
     serviceType: Database["public"]["Enums"]["service_type"];
@@ -117,6 +118,10 @@ export default function MembershipPlansPicker({ plans }: { plans: PickerPlan[] }
                 }}
               >
                 {plan.description}
+              </p>
+              <p style={{ fontSize: 11, color: plan.slug === "casa-familia" ? "#aebbaf" : "#9aa49d", marginTop: 8 }}>
+                Renews automatically {usingAnnual ? "every year" : "every month"} until you cancel.
+                {!usingAnnual && ` ${plan.minimumTermMonths}-month minimum commitment.`}
               </p>
               <SubscribeButton planId={plan.id} cadence={usingAnnual ? "annual" : "monthly"} />
             </div>
