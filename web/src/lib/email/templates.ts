@@ -230,6 +230,40 @@ export function membershipActiveEmail(params: {
   };
 }
 
+// Annual memberships only (see the membership-renewal-reminders cron) --
+// monthly already renews every ~30 days, so a "30 days out" reminder for
+// it would land right after the last charge and just be noise. Annual is
+// a single ~once-a-year charge people are far more likely to forget
+// about, which is what actually makes a reminder useful here.
+export function membershipRenewalReminderEmail(params: {
+  planName: string;
+  renewalDate: string;
+  priceCents: number;
+  daysUntil: 30 | 3;
+}): { subject: string; html: string } {
+  const { planName, renewalDate, priceCents, daysUntil } = params;
+  const urgent = daysUntil === 3;
+  return {
+    subject: urgent
+      ? `Your ${planName} membership renews in 3 days`
+      : `Heads up: your ${planName} membership renews in 30 days`,
+    html: emailLayout(
+      `Renews ${formatDate(renewalDate)} at ${formatCents(priceCents)}.`,
+      `
+      <h2 style="color:#1B3B31;margin:0 0 12px;">${urgent ? "Renewing soon" : "Upcoming renewal"}</h2>
+      <p style="margin:0 0 20px;line-height:1.6;">
+        Your ${planName} membership is set to renew on ${formatDate(renewalDate)} for
+        ${formatCents(priceCents)}, billed automatically to your card on file. No action needed to
+        keep it going -- this is just a heads-up.
+      </p>
+      <a href="${SITE_URL}/account/membership" style="display:inline-block;background:#E9A23B;color:#1B3B31;font-weight:700;padding:10px 22px;border-radius:99px;text-decoration:none;">
+        Manage membership
+      </a>
+      `
+    ),
+  };
+}
+
 export function membershipPastDueEmail(): { subject: string; html: string } {
   return {
     subject: "Action needed: update your membership payment method",

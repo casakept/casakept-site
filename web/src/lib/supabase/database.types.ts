@@ -613,6 +613,7 @@ export type Database = {
           id: string
           sent_at: string | null
           status: string
+          subscription_id: string | null
           template: string
         }
         Insert: {
@@ -623,6 +624,7 @@ export type Database = {
           id?: string
           sent_at?: string | null
           status?: string
+          subscription_id?: string | null
           template: string
         }
         Update: {
@@ -633,6 +635,7 @@ export type Database = {
           id?: string
           sent_at?: string | null
           status?: string
+          subscription_id?: string | null
           template?: string
         }
         Relationships: [
@@ -648,6 +651,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_log_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
             referencedColumns: ["id"]
           },
         ]

@@ -8,11 +8,14 @@ export type EmailTemplate =
   | "booking_cancelled"
   | "membership_active"
   | "membership_past_due"
+  | "membership_renewal_30d"
+  | "membership_renewal_3d"
   | "csat_survey";
 
 type SendNotificationEmailParams = {
   customerId: string;
   bookingId?: string;
+  subscriptionId?: string;
   template: EmailTemplate;
   subject: string;
   html: string;
@@ -28,6 +31,7 @@ type SendNotificationEmailParams = {
 export async function sendNotificationEmail({
   customerId,
   bookingId,
+  subscriptionId,
   template,
   subject,
   html,
@@ -47,6 +51,7 @@ export async function sendNotificationEmail({
     await supabase.from("notifications_log").insert({
       customer_id: customerId,
       booking_id: bookingId ?? null,
+      subscription_id: subscriptionId ?? null,
       channel: "email",
       template,
       status: "failed",
@@ -66,6 +71,7 @@ export async function sendNotificationEmail({
     await supabase.from("notifications_log").insert({
       customer_id: customerId,
       booking_id: bookingId ?? null,
+      subscription_id: subscriptionId ?? null,
       channel: "email",
       template,
       status: "sent",
@@ -76,6 +82,7 @@ export async function sendNotificationEmail({
     await supabase.from("notifications_log").insert({
       customer_id: customerId,
       booking_id: bookingId ?? null,
+      subscription_id: subscriptionId ?? null,
       channel: "email",
       template,
       status: "failed",
