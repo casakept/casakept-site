@@ -39,12 +39,31 @@ export default async function AdminOverviewPage() {
     supabase
       .from("bookings")
       .select(
-        "id, service_type, scheduled_date, time_window, status, customer:profiles!bookings_customer_id_fkey(full_name)"
+        "id, customer_id, service_type, scheduled_date, time_window, status, customer:profiles!bookings_customer_id_fkey(full_name)"
       )
       .in("status", ["pending", "confirmed"])
       .order("scheduled_date", { ascending: true })
       .limit(8),
   ]);
+
+  // Members get priority in this queue -- sorted to the top (stable sort,
+  // so within each group the original scheduled_date ordering holds) and
+  // badged, so whoever's triaging this list sees them first. Scoped to just
+  // the customer_ids already on screen rather than a broader membership
+  // query, since this only needs to reorder what's already here.
+  const needsAttentionCustomerIds = [...new Set((needsAttention ?? []).map((b) => b.customer_id))];
+  const { data: memberSubs } =
+    needsAttentionCustomerIds.length > 0
+      ? await supabase
+          .from("subscriptions")
+          .select("customer_id")
+          .eq("status", "active")
+          .in("customer_id", needsAttentionCustomerIds)
+      : { data: [] };
+  const memberCustomerIds = new Set((memberSubs ?? []).map((s) => s.customer_id));
+  const sortedNeedsAttention = [...(needsAttention ?? [])].sort(
+    (a, b) => Number(!memberCustomerIds.has(a.customer_id)) - Number(!memberCustomerIds.has(b.customer_id))
+  );
 
   return (
     <div>
@@ -75,19 +94,22 @@ export default async function AdminOverviewPage() {
 
       <div style={{ marginTop: 40 }}>
         <h3>Needs a staff assignment</h3>
-        {!needsAttention || needsAttention.length === 0 ? (
+        {sortedNeedsAttention.length === 0 ? (
           <p style={{ marginTop: 10, color: "#6a746c" }}>
             Nothing waiting on you right now.
           </p>
         ) : (
           <div style={{ marginTop: 14, display: "grid", gap: 12 }}>
-            {needsAttention.map((b) => (
+            {sortedNeedsAttention.map((b) => (
               <div className="card" key={b.id}>
                 <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
                   <div>
                     <strong style={{ color: "var(--verde)" }}>
                       {SERVICE_LABELS[b.service_type] ?? b.service_type}
-                    </strong>
+                    </strong>{" "}
+                    {memberCustomerIds.has(b.customer_id) && (
+                      <span className="status-badge founding">Member</span>
+                    )}
                     <p>{b.customer?.full_name ?? "Unknown customer"}</p>
                   </div>
                   <div style={{ textAlign: "right" }}>
