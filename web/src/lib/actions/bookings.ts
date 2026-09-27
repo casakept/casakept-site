@@ -10,7 +10,8 @@ import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import { sendNotificationEmail } from "@/lib/email/send";
 import { bookingConfirmedEmail, bookingCancelledEmail } from "@/lib/email/templates";
 import { PRODUCT_CATEGORIES_BY_SERVICE, PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
-import { businessDateISO } from "@/lib/businessTime";
+import { businessDateISO, businessDateISOPlusDays } from "@/lib/businessTime";
+import { NON_MEMBER_BOOKING_HORIZON_DAYS, MEMBER_BOOKING_HORIZON_DAYS } from "@/lib/bookingHorizon";
 import type { Database } from "@/lib/supabase/database.types";
 
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
@@ -49,6 +50,32 @@ export async function createBookingAction(
   }
   if (scheduledDate < businessDateISO()) {
     return { error: "Choose a date today or later." };
+  }
+
+  // Fetched here (rather than closer to the pricing logic below that
+  // actually needs its fields) so it's available for the priority-
+  // scheduling horizon check next -- one fetch serves both, rather than a
+  // second lightweight existence-only query duplicating this one.
+  const { data: subscription } = await supabase
+    .from("subscriptions")
+    .select(
+      "id, plan_id, created_at, current_period_start, current_period_end, membership_plans(extra_services_discount_pct)"
+    )
+    .eq("customer_id", user.id)
+    .eq("status", "active")
+    .maybeSingle();
+
+  // Priority scheduling: members can book further ahead than non-members.
+  // The wizard's date picker already caps this client-side, but that's
+  // just UX -- this is the real gate, since a submitted date could
+  // otherwise bypass the picker's max entirely.
+  const bookingHorizonDays = subscription ? MEMBER_BOOKING_HORIZON_DAYS : NON_MEMBER_BOOKING_HORIZON_DAYS;
+  if (scheduledDate > businessDateISOPlusDays(bookingHorizonDays)) {
+    return {
+      error: subscription
+        ? `Choose a date within the next ${MEMBER_BOOKING_HORIZON_DAYS} days.`
+        : `Non-member bookings are limited to the next ${NON_MEMBER_BOOKING_HORIZON_DAYS} days. Join a membership to book further ahead.`,
+    };
   }
 
   // Final availability recheck -- the wizard's step 3 already checked this,
@@ -95,15 +122,6 @@ export async function createBookingAction(
       .maybeSingle();
     if (!staff) return { error: "That cleaner isn't available right now." };
   }
-
-  const { data: subscription } = await supabase
-    .from("subscriptions")
-    .select(
-      "id, plan_id, created_at, current_period_start, current_period_end, membership_plans(extra_services_discount_pct)"
-    )
-    .eq("customer_id", user.id)
-    .eq("status", "active")
-    .maybeSingle();
 
   let priceCents = service.base_price_cents;
   let coveredByEntitlement = false;

@@ -8,7 +8,8 @@ import { StripePaymentForm } from "@/components/stripe/PaymentForm";
 import ServiceDetailModal from "@/components/account/ServiceDetailModal";
 import { SERVICE_CATEGORIES } from "@/lib/serviceCategories";
 import { PRODUCT_CATEGORIES_BY_SERVICE, PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
-import { businessDateISO } from "@/lib/businessTime";
+import { businessDateISO, businessDateISOPlusDays } from "@/lib/businessTime";
+import { NON_MEMBER_BOOKING_HORIZON_DAYS, MEMBER_BOOKING_HORIZON_DAYS } from "@/lib/bookingHorizon";
 
 type Property = { id: string; label: string | null; address_line1: string; city: string };
 type Service = {
@@ -124,6 +125,8 @@ export default function BookingWizard({
   }, [selectedService, coverage, hasSubscription, extraServicesDiscountPct]);
 
   const today = businessDateISO();
+  const bookingHorizonDays = hasSubscription ? MEMBER_BOOKING_HORIZON_DAYS : NON_MEMBER_BOOKING_HORIZON_DAYS;
+  const maxBookableDate = businessDateISOPlusDays(bookingHorizonDays);
 
   const applicableCategories = selectedService
     ? PRODUCT_CATEGORIES_BY_SERVICE[selectedService.service_type as keyof typeof PRODUCT_CATEGORIES_BY_SERVICE] ?? []
@@ -299,9 +302,17 @@ export default function BookingWizard({
               id="scheduled_date"
               type="date"
               min={today}
+              max={maxBookableDate}
               value={scheduledDate}
               onChange={(e) => setScheduledDate(e.target.value)}
             />
+            {!hasSubscription && (
+              <p style={{ fontSize: 12, color: "#9aa49d", marginTop: 4 }}>
+                Non-member bookings are limited to the next {NON_MEMBER_BOOKING_HORIZON_DAYS} days. Members can
+                book up to {MEMBER_BOOKING_HORIZON_DAYS} days ahead —{" "}
+                <Link href="/account/membership">join a membership</Link> to reserve dates further out.
+              </p>
+            )}
           </div>
           <div className="field">
             <label htmlFor="time_window">Time window</label>

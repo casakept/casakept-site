@@ -6,6 +6,7 @@ import PastDuePaymentBanner from "@/components/account/PastDuePaymentBanner";
 import MembershipPlansPicker, { type PickerPlan } from "@/components/account/MembershipPlansPicker";
 import { entitlementPeriodFor } from "@/lib/entitlements";
 import { effectiveCancelDate } from "@/lib/membershipCancellation";
+import { NON_MEMBER_BOOKING_HORIZON_DAYS, MEMBER_BOOKING_HORIZON_DAYS } from "@/lib/bookingHorizon";
 import { SERVICE_LABELS } from "@/lib/serviceLabels";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -204,8 +205,9 @@ export default async function MembershipPage() {
     <div>
       <h3>Choose a membership</h3>
       <p style={{ marginTop: 8, color: "#6a746c" }}>
-        Every membership includes the same crew each visit, priority
-        scheduling, and a member discount on everything else.
+        Every membership includes the same crew each visit, priority scheduling (book up to{" "}
+        {MEMBER_BOOKING_HORIZON_DAYS} days ahead — non-members are limited to {NON_MEMBER_BOOKING_HORIZON_DAYS}),
+        and a member discount on everything else.
       </p>
       <MembershipPlansPicker plans={pickerPlans} />
     </div>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createPublicClient } from "@/lib/supabase/public";
 import { SERVICE_LABELS, FREQUENCY_LABELS } from "@/lib/serviceLabels";
+import { NON_MEMBER_BOOKING_HORIZON_DAYS, MEMBER_BOOKING_HORIZON_DAYS } from "@/lib/bookingHorizon";
 import type { Database } from "@/lib/supabase/database.types";
 
 export const metadata: Metadata = {
@@ -58,8 +59,9 @@ export default async function PricingPage() {
           <h1 style={{ fontSize: "clamp(34px,5vw,52px)" }}>Pick your peace of mind.</h1>
           <p className="lede" style={{ marginTop: 14 }}>
             Every membership includes the same background-checked crew each visit, photo-verified checklists,
-            priority scheduling, a 24-hour re-do guarantee — and 10% off with annual prepay. Founding members
-            lock today&apos;s rate for life.
+            priority scheduling — book up to {MEMBER_BOOKING_HORIZON_DAYS} days ahead, non-members{" "}
+            {NON_MEMBER_BOOKING_HORIZON_DAYS} — a 24-hour re-do guarantee, and 10% off with annual prepay.
+            Founding members lock today&apos;s rate for life.
           </p>
         </div>
       </section>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createPublicClient } from "@/lib/supabase/public";
+import { NON_MEMBER_BOOKING_HORIZON_DAYS, MEMBER_BOOKING_HORIZON_DAYS } from "@/lib/bookingHorizon";
 
 export const metadata: Metadata = {
   description:
@@ -237,8 +238,9 @@ export default async function HomePage() {
           <h2>Pick your peace of mind.</h2>
           <p className="lede" style={{ marginTop: 12 }}>
             Three plans, three-month minimum, founding rate locked for life.
-            Every membership includes priority scheduling and the 24-hour
-            re-do guarantee.
+            Every membership includes priority scheduling — book up to{" "}
+            {MEMBER_BOOKING_HORIZON_DAYS} days ahead, non-members{" "}
+            {NON_MEMBER_BOOKING_HORIZON_DAYS} — and the 24-hour re-do guarantee.
           </p>
           <div className="tiers" style={{ marginTop: 34 }}>
             <div className="tier reveal">

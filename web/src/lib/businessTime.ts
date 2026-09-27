@@ -25,6 +25,18 @@ export function businessDateAnchor(date: Date = new Date()): Date {
   return new Date(Date.UTC(year, month - 1, day));
 }
 
+// YYYY-MM-DD, N calendar days out from a given instant (defaults to now),
+// as it reads on a calendar in Central time -- e.g. for a booking-horizon
+// cutoff. Anchors first, then does the day arithmetic in UTC-getter space
+// (see businessDateAnchor) rather than re-running it through Intl a second
+// time, which would misread a UTC-midnight anchor as the previous day in
+// Central time.
+export function businessDateISOPlusDays(days: number, date: Date = new Date()): string {
+  const anchor = businessDateAnchor(date);
+  anchor.setUTCDate(anchor.getUTCDate() + days);
+  return anchor.toISOString().slice(0, 10);
+}
+
 // Human-readable "Sep 23, 2026, 4:32 PM CDT" in Central time, for stamping
 // onto checklist photos so a visit's photo timing isn't disputable later.
 export function businessTimestampLabel(date: Date = new Date()): string {
