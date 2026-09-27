@@ -224,8 +224,9 @@ export default async function HomePage() {
                 Guarantees in writing
               </h3>
               <p style={{ fontSize: 14, color: "#cfd6cc" }}>
-                Anything missed, re-done free within 24 hours. Laundry back in
-                48 hours or it&apos;s free. Arrival windows we actually hit.
+                Anything missed, report it within 24 hours and we&apos;ll re-do it
+                free within 48. Laundry back in 48 hours or it&apos;s free. Arrival
+                windows we actually hit.
               </p>
             </div>
           </div>
@@ -240,7 +241,7 @@ export default async function HomePage() {
             Three plans, three-month minimum, founding rate locked for life.
             Every membership includes priority scheduling — book up to{" "}
             {MEMBER_BOOKING_HORIZON_DAYS} days ahead, non-members{" "}
-            {NON_MEMBER_BOOKING_HORIZON_DAYS} — and the 24-hour re-do guarantee.
+            {NON_MEMBER_BOOKING_HORIZON_DAYS} — and the re-do guarantee.
           </p>
           <div className="tiers" style={{ marginTop: 34 }}>
             <div className="tier reveal">

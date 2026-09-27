@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/admin/staff", label: "Staff" },
   { href: "/admin/products", label: "Products" },
   { href: "/admin/scores", label: "Scores" },
+  { href: "/admin/redo-requests", label: "Re-do requests" },
   { href: "/admin/bonuses", label: "Bonuses" },
   { href: "/admin/estimates", label: "Estimates" },
 ];

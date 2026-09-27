@@ -47,7 +47,7 @@ export const ACK_TERMS = [
   },
   {
     key: "ack_guarantee",
-    text: "24-hour guarantee: anything missed from the checklist is re-done free within 24 hours of being reported.",
+    text: "Re-do guarantee: anything missed from the checklist can be reported within 24 hours of the visit, and we'll re-do it free within 48 hours of being reported.",
   },
   {
     key: "ack_carpet_access",

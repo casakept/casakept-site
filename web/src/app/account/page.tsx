@@ -32,7 +32,9 @@ export default async function AccountOverviewPage() {
         .limit(5),
       supabase
         .from("bookings")
-        .select("id, service_type, scheduled_date, time_window, status, properties(address_line1, city)")
+        .select(
+          "id, service_type, scheduled_date, time_window, status, properties(address_line1, city), csat:csat_responses(token, responded_at)"
+        )
         .eq("customer_id", user!.id)
         .eq("status", "completed")
         .order("scheduled_date", { ascending: false })

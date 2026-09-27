@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { cancelBookingAction, type BookingActionState } from "@/lib/actions/bookings";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import type { Database } from "@/lib/supabase/database.types";
@@ -14,6 +15,7 @@ export type UpcomingBooking = {
   time_window: Database["public"]["Enums"]["schedule_window"];
   status: BookingStatus;
   properties: { address_line1: string; city: string } | null;
+  csat?: { token: string; responded_at: string | null } | null;
 };
 
 const CANCELLABLE_STATUSES = new Set<BookingStatus>(["pending", "confirmed", "assigned"]);
@@ -24,6 +26,10 @@ export default function BookingCard({ booking }: { booking: UpcomingBooking }) {
   const action = cancelBookingAction.bind(null, booking.id, booking.status);
   const [state, formAction, pending] = useActionState(action, initialState);
   const cancellable = !state.success && CANCELLABLE_STATUSES.has(booking.status);
+  // Same survey page the CSAT email links to -- rating and "anything to
+  // flag?" (missed item / damage) both live there, so this is a second
+  // way to reach it, not a separate flow.
+  const canRate = booking.status === "completed" && booking.csat && !booking.csat.responded_at;
 
   return (
     <div className="card">
@@ -62,6 +68,14 @@ export default function BookingCard({ booking }: { booking: UpcomingBooking }) {
             </span>
           )}
         </form>
+      )}
+
+      {canRate && (
+        <div style={{ marginTop: 14 }}>
+          <Link className="btn ghost" href={`/survey/${booking.csat!.token}`} style={{ padding: "6px 16px", fontSize: 13 }}>
+            Rate this visit
+          </Link>
+        </div>
       )}
     </div>
   );

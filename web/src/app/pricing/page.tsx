@@ -60,7 +60,8 @@ export default async function PricingPage() {
           <p className="lede" style={{ marginTop: 14 }}>
             Every membership includes the same background-checked crew each visit, photo-verified checklists,
             priority scheduling — book up to {MEMBER_BOOKING_HORIZON_DAYS} days ahead, non-members{" "}
-            {NON_MEMBER_BOOKING_HORIZON_DAYS} — a 24-hour re-do guarantee, and 10% off with annual prepay.
+            {NON_MEMBER_BOOKING_HORIZON_DAYS} — a re-do guarantee (report within 24 hours, fixed free within
+            48), and 10% off with annual prepay.
             Founding members lock today&apos;s rate for life.
           </p>
         </div>

@@ -264,6 +264,33 @@ export function membershipRenewalReminderEmail(params: {
   };
 }
 
+export function redoRequestAdminNotifyEmail(params: { kind: "redo" | "damage" }): {
+  subject: string;
+  html: string;
+} {
+  const { kind } = params;
+  const isRedo = kind === "redo";
+  return {
+    subject: isRedo ? "New re-do request -- 48-hour clock started" : "New damage report",
+    html: emailLayout(
+      isRedo ? "A customer flagged a missed item -- respond within 48 hours." : "A customer reported damage.",
+      `
+      <h2 style="color:#1B3B31;margin:0 0 12px;">${isRedo ? "Re-do requested" : "Damage reported"}</h2>
+      <p style="margin:0 0 20px;line-height:1.6;">
+        ${
+          isRedo
+            ? "A customer flagged something missed from their visit and requested a re-do. The 48-hour turnaround clock has started."
+            : "A customer reported damage from a visit. Review the details and follow up."
+        }
+      </p>
+      <a href="${SITE_URL}/admin/redo-requests" style="display:inline-block;background:#E9A23B;color:#1B3B31;font-weight:700;padding:10px 22px;border-radius:99px;text-decoration:none;">
+        Review request
+      </a>
+      `
+    ),
+  };
+}
+
 export function membershipPastDueEmail(): { subject: string; html: string } {
   return {
     subject: "Action needed: update your membership payment method",

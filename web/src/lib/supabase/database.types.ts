@@ -847,6 +847,92 @@ export type Database = {
           },
         ]
       }
+      redo_requests: {
+        Row: {
+          admin_notes: string | null
+          booking_id: string
+          checklist_item_ids: string[]
+          created_at: string
+          customer_id: string
+          description: string
+          due_by: string | null
+          id: string
+          kind: Database["public"]["Enums"]["redo_request_kind"]
+          photo_path: string | null
+          redo_booking_id: string | null
+          reported_at: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: Database["public"]["Enums"]["redo_request_status"]
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          booking_id: string
+          checklist_item_ids?: string[]
+          created_at?: string
+          customer_id: string
+          description: string
+          due_by?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["redo_request_kind"]
+          photo_path?: string | null
+          redo_booking_id?: string | null
+          reported_at?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["redo_request_status"]
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          booking_id?: string
+          checklist_item_ids?: string[]
+          created_at?: string
+          customer_id?: string
+          description?: string
+          due_by?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["redo_request_kind"]
+          photo_path?: string | null
+          redo_booking_id?: string | null
+          reported_at?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["redo_request_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "redo_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "redo_requests_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "redo_requests_redo_booking_id_fkey"
+            columns: ["redo_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "redo_requests_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           active: boolean
@@ -1383,6 +1469,8 @@ export type Database = {
       notification_channel: "email" | "sms"
       payment_status: "pending" | "succeeded" | "failed" | "refunded"
       product_preference: "standard" | "hypoallergenic" | "pet_safe"
+      redo_request_kind: "redo" | "damage"
+      redo_request_status: "open" | "scheduled" | "resolved" | "denied"
       schedule_window: "morning" | "midday" | "afternoon"
       service_type:
         | "standard_clean"
@@ -1552,6 +1640,8 @@ export const Constants = {
       notification_channel: ["email", "sms"],
       payment_status: ["pending", "succeeded", "failed", "refunded"],
       product_preference: ["standard", "hypoallergenic", "pet_safe"],
+      redo_request_kind: ["redo", "damage"],
+      redo_request_status: ["open", "scheduled", "resolved", "denied"],
       schedule_window: ["morning", "midday", "afternoon"],
       service_type: [
         "standard_clean",
