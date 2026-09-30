@@ -39,6 +39,7 @@ yarn-error.log*
 
 # supabase
 supabase/.temp
+scripts/.redo_test_scenario.json
 
 # typescript
 *.tsbuildinfo

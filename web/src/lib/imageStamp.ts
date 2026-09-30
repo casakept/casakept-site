@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import heicConvert from "heic-convert";
 
 function escapeXml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -10,20 +11,34 @@ function escapeXml(text: string): string {
 // carries the same visible timestamp. Always re-encodes to JPEG so the
 // output format/orientation is predictable regardless of the source.
 export async function stampPhotoWithTimestamp(input: Buffer, label: string): Promise<Buffer> {
+  let source = input;
+  let metadata = await sharp(input).metadata();
+
+  if (metadata.format === "heif") {
+    // iPhone/Mac Photos save as HEIC by default. metadata() can still read
+    // the HEIC container's header (that's how we know it's "heif" here),
+    // but the libheif build sharp ships only includes the royalty-free
+    // AVIF decoder, not HEVC -- .composite() below would throw "Decoder
+    // plugin generated an error" trying to actually decode the pixels.
+    // Pre-convert with a pure-JS HEVC decoder first.
+    const converted = await heicConvert({ buffer: input, format: "JPEG", quality: 0.92 });
+    source = Buffer.from(converted);
+    metadata = await sharp(source).metadata();
+  }
+
   // metadata().width/height report the RAW file's dimensions, before the
   // .rotate() below actually applies -- for a photo with EXIF orientation
   // 5-8 (90/270 degree phone rotations), the real output is width/height
   // swapped from that. Composite would then throw a dimension mismatch
   // against the un-swapped overlay, so swap here to match what .rotate()
   // will actually produce.
-  const metadata = await sharp(input).metadata();
   const swapped = (metadata.orientation ?? 1) >= 5;
   const width = (swapped ? metadata.height : metadata.width) ?? 800;
   const height = (swapped ? metadata.width : metadata.height) ?? 600;
 
   // .rotate() with no args auto-orients from the source's EXIF Orientation
   // tag (mobile cameras write these) and strips it afterward.
-  const oriented = sharp(input).rotate();
+  const oriented = sharp(source).rotate();
 
   const fontSize = Math.max(14, Math.round(width * 0.032));
   const barHeight = Math.round(fontSize * 2.2);
