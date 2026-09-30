@@ -22,6 +22,7 @@ export type StaffJob = {
   time_window: Database["public"]["Enums"]["schedule_window"];
   service_type: ServiceType;
   notes: string | null;
+  redo_of_booking_id: string | null;
   customer: { full_name: string | null; phone: string | null } | null;
   property: { address_line1: string; city: string } | null;
   checkin: { check_in_at: string | null; check_out_at: string | null } | null;
@@ -82,7 +83,8 @@ export default function JobRow({
           <strong style={{ color: "var(--verde)" }}>
             {SERVICE_LABELS[job.service_type] ?? job.service_type}
           </strong>{" "}
-          <span className={`status-badge ${job.status}`}>{job.status.replace("_", " ")}</span>
+          <span className={`status-badge ${job.status}`}>{job.status.replace("_", " ")}</span>{" "}
+          {job.redo_of_booking_id && <span className="status-badge pending">Re-do visit</span>}
           <p>
             {job.customer?.full_name ?? "Customer"}
             {job.customer?.phone ? ` · ${job.customer.phone}` : ""}

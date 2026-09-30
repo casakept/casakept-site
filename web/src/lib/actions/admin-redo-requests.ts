@@ -66,6 +66,7 @@ export async function scheduleRedoAction(
       price_cents: 0,
       covered_by_entitlement: false,
       notes: "Re-do visit -- no charge.",
+      redo_of_booking_id: redoRequest.booking_id,
     })
     .select("id")
     .single();

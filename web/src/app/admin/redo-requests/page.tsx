@@ -1,13 +1,30 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import RedoRequestRow, { type RedoRequestRowData } from "@/components/admin/RedoRequestRow";
+import type { Database } from "@/lib/supabase/database.types";
 
 export const metadata: Metadata = {
   title: "Admin · Re-do requests",
 };
 
-export default async function AdminRedoRequestsPage() {
+type Kind = Database["public"]["Enums"]["redo_request_kind"];
+
+const KIND_TABS: { value: Kind; label: string }[] = [
+  { value: "redo", label: "Re-do requests" },
+  { value: "damage", label: "Damage reports" },
+];
+
+function isKind(value: string): value is Kind {
+  return KIND_TABS.some((t) => t.value === value);
+}
+
+export default async function AdminRedoRequestsPage({ searchParams }: PageProps<"/admin/redo-requests">) {
+  const params = await searchParams;
+  const kindParam = typeof params.kind === "string" ? params.kind : "redo";
+  const kindFilter = isKind(kindParam) ? kindParam : "redo";
+
   const supabase = await createClient();
 
   const { data: requests } = await supabase
@@ -90,12 +107,18 @@ export default async function AdminRedoRequestsPage() {
       },
     }));
 
-  const openRows = rows.filter((r) => r.status === "open").sort((a, b) => {
+  const openCountByKind = { redo: 0, damage: 0 } as Record<Kind, number>;
+  for (const r of rows) {
+    if (r.status === "open") openCountByKind[r.kind]++;
+  }
+
+  const kindRows = rows.filter((r) => r.kind === kindFilter);
+  const openRows = kindRows.filter((r) => r.status === "open").sort((a, b) => {
     if (!a.dueBy) return 1;
     if (!b.dueBy) return -1;
     return new Date(a.dueBy).getTime() - new Date(b.dueBy).getTime();
   });
-  const otherRows = rows.filter((r) => r.status !== "open");
+  const otherRows = kindRows.filter((r) => r.status !== "open");
 
   const staffChoices = (staffOptions ?? [])
     .map((s) => ({ id: s.id, name: s.profile?.full_name ?? "Unnamed staff" }))
@@ -107,7 +130,20 @@ export default async function AdminRedoRequestsPage() {
         Re-do requests (48-hour turnaround) and damage reports from the visit survey.
       </p>
 
-      <h3>Open</h3>
+      <div className="admin-filters">
+        {KIND_TABS.map((t) => (
+          <Link
+            key={t.value}
+            href={t.value === "redo" ? "/admin/redo-requests" : `/admin/redo-requests?kind=${t.value}`}
+            aria-current={kindFilter === t.value ? "page" : undefined}
+          >
+            {t.label}
+            {openCountByKind[t.value] > 0 ? ` (${openCountByKind[t.value]})` : ""}
+          </Link>
+        ))}
+      </div>
+
+      <h3 style={{ marginTop: 20 }}>Open</h3>
       {openRows.length === 0 ? (
         <p style={{ marginTop: 10, color: "#6a746c" }}>Nothing open right now.</p>
       ) : (

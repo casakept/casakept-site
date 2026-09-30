@@ -89,6 +89,7 @@ export type Database = {
           preferred_staff_id: string | null
           price_cents: number
           property_id: string
+          redo_of_booking_id: string | null
           scheduled_date: string
           service_id: string | null
           service_type: Database["public"]["Enums"]["service_type"]
@@ -107,6 +108,7 @@ export type Database = {
           preferred_staff_id?: string | null
           price_cents?: number
           property_id: string
+          redo_of_booking_id?: string | null
           scheduled_date: string
           service_id?: string | null
           service_type: Database["public"]["Enums"]["service_type"]
@@ -125,6 +127,7 @@ export type Database = {
           preferred_staff_id?: string | null
           price_cents?: number
           property_id?: string
+          redo_of_booking_id?: string | null
           scheduled_date?: string
           service_id?: string | null
           service_type?: Database["public"]["Enums"]["service_type"]
@@ -153,6 +156,13 @@ export type Database = {
             columns: ["preferred_staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_redo_of_booking_id_fkey"
+            columns: ["redo_of_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
           {
