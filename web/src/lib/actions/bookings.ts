@@ -6,6 +6,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { getOrCreateStripeCustomerId } from "@/lib/stripe/customer";
 import { stripe } from "@/lib/stripe/server";
 import { entitlementPeriodFor, widestFrequency } from "@/lib/entitlements";
+import { buildQuote, homeSizeFromProperty } from "@/lib/homePricing";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import { sendNotificationEmail } from "@/lib/email/send";
 import { bookingConfirmedEmail, bookingCancelledEmail } from "@/lib/email/templates";
@@ -96,7 +97,7 @@ export async function createBookingAction(
 
   const { data: property } = await supabase
     .from("properties")
-    .select("id, address_line1, city")
+    .select("id, address_line1, city, bedrooms, bathrooms, extra_rooms")
     .eq("id", propertyId)
     .eq("customer_id", user.id)
     .maybeSingle();
@@ -123,7 +124,23 @@ export async function createBookingAction(
     if (!staff) return { error: "That cleaner isn't available right now." };
   }
 
-  let priceCents = service.base_price_cents;
+  // Whole-home cleanings are priced by the home's bedrooms, bathrooms, and
+  // extra rooms (service_size_rates); everything else is a flat price.
+  // Priced here from the saved property, never from anything the browser
+  // sends, so the wizard's quote can't be tampered with.
+  const { data: sizeRate } = await supabase
+    .from("service_size_rates")
+    .select("service_type, included_bedrooms, included_bathrooms, extra_bedroom_cents, extra_half_bath_cents, extra_room_cents")
+    .eq("service_type", service.service_type)
+    .maybeSingle();
+  const home = homeSizeFromProperty(property);
+  if (sizeRate && !home) {
+    return { error: "Add your home's bedroom and bathroom details on the Properties page before booking this service." };
+  }
+  const quoteTotal = (discountPct: number) =>
+    buildQuote({ baseCents: service.base_price_cents, rate: sizeRate, home, discountPct }).totalCents;
+
+  let priceCents = quoteTotal(0);
   let coveredByEntitlement = false;
   let claimedUsage:
     | Database["public"]["Tables"]["entitlement_usage"]["Row"]
@@ -137,7 +154,7 @@ export async function createBookingAction(
     // better for the member rather than always applying the flat rate.
     const planDiscountPct = subscription.membership_plans?.extra_services_discount_pct ?? 0;
     const discountPct = Math.max(planDiscountPct, service.member_discount_pct);
-    priceCents = Math.round(priceCents * (1 - discountPct / 100));
+    priceCents = quoteTotal(discountPct);
 
     const { data: planEntitlements } = await supabase
       .from("plan_entitlements")

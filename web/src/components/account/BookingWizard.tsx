@@ -10,8 +10,17 @@ import { SERVICE_CATEGORIES } from "@/lib/serviceCategories";
 import { PRODUCT_CATEGORIES_BY_SERVICE, PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
 import { businessDateISO, businessDateISOPlusDays } from "@/lib/businessTime";
 import { NON_MEMBER_BOOKING_HORIZON_DAYS, MEMBER_BOOKING_HORIZON_DAYS } from "@/lib/bookingHorizon";
+import { buildQuote, formatDollars, homeSizeFromProperty, type SizeRate } from "@/lib/homePricing";
 
-type Property = { id: string; label: string | null; address_line1: string; city: string };
+type Property = {
+  id: string;
+  label: string | null;
+  address_line1: string;
+  city: string;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  extra_rooms: string[];
+};
 type Service = {
   id: string;
   service_type: string;
@@ -44,6 +53,7 @@ export default function BookingWizard({
   usage,
   staff,
   products,
+  sizeRates,
 }: {
   properties: Property[];
   initialPropertyId: string | null;
@@ -54,6 +64,7 @@ export default function BookingWizard({
   usage: Usage[];
   staff: StaffMember[];
   products: Product[];
+  sizeRates: SizeRate[];
 }) {
   const [state, formAction, pending] = useActionState(createBookingAction, initialState);
   const [paid, setPaid] = useState(false);
@@ -118,17 +129,29 @@ export default function BookingWizard({
     return { included, used, remaining: Math.max(included - used, 0) };
   }, [hasSubscription, selectedService, entitlements, usage]);
 
-  const priceCents = useMemo(() => {
-    if (!selectedService) return 0;
-    if (coverage && coverage.remaining > 0) return 0;
-    if (hasSubscription) {
-      // Mirrors createBookingAction: some services carry their own member
-      // rate that's more generous than the plan's blanket discount.
-      const discountPct = Math.max(extraServicesDiscountPct, selectedService.member_discount_pct);
-      return Math.round(selectedService.base_price_cents * (1 - discountPct / 100));
-    }
-    return selectedService.base_price_cents;
-  }, [selectedService, coverage, hasSubscription, extraServicesDiscountPct]);
+  const selectedHome = homeSizeFromProperty(properties.find((p) => p.id === propertyId));
+  const rateByServiceType = useMemo(() => new Map(sizeRates.map((r) => [r.service_type, r])), [sizeRates]);
+
+  // Mirrors createBookingAction: some services carry their own member rate
+  // that's more generous than the plan's blanket discount.
+  function discountPctFor(s: Service): number {
+    return hasSubscription ? Math.max(extraServicesDiscountPct, s.member_discount_pct) : 0;
+  }
+
+  // A size-priced service can't be quoted until the home has bedroom and
+  // bathroom details (properties saved before those were collected).
+  const needsHomeDetails = !!selectedService && rateByServiceType.has(selectedService.service_type) && !selectedHome;
+
+  const quote = selectedService
+    ? buildQuote({
+        baseCents: selectedService.base_price_cents,
+        rate: rateByServiceType.get(selectedService.service_type) ?? null,
+        home: selectedHome,
+        discountPct: discountPctFor(selectedService),
+      })
+    : null;
+  const covered = !!coverage && coverage.remaining > 0;
+  const priceCents = covered ? 0 : (quote?.totalCents ?? 0);
 
   const today = businessDateISO();
   const bookingHorizonDays = hasSubscription ? MEMBER_BOOKING_HORIZON_DAYS : NON_MEMBER_BOOKING_HORIZON_DAYS;
@@ -160,7 +183,7 @@ export default function BookingWizard({
 
   function isStepValid(s: number): boolean {
     if (s === 1) return !!propertyId;
-    if (s === 2) return !!serviceId;
+    if (s === 2) return !!serviceId && !needsHomeDetails;
     if (s === 3) return !!scheduledDate && !!timeWindow;
     return true; // cleaner and products steps are always optional
   }
@@ -267,6 +290,12 @@ export default function BookingWizard({
             Pick one service per visit. Want more than one? Book this one first -- you&apos;ll get a one-click
             option to add another visit right after.
           </p>
+          {needsHomeDetails && (
+            <p className="form-msg error">
+              This home needs its bedroom and bathroom details before we can price this service.{" "}
+              <Link href="/account/properties">Add them on your Properties page</Link>, then come back.
+            </p>
+          )}
           {servicesByCategory.map((group) => (
             <div key={group.label} style={{ marginBottom: 24 }}>
               <p className="room">{group.label}</p>
@@ -280,7 +309,24 @@ export default function BookingWizard({
                     >
                       <div className="t">{s.name}</div>
                       {s.description && <div className="d">{s.description}</div>}
-                      <div className="p">${(s.base_price_cents / 100).toFixed(0)}</div>
+                      {(() => {
+                        const rate = rateByServiceType.get(s.service_type) ?? null;
+                        const cardQuote = buildQuote({ baseCents: s.base_price_cents, rate, home: selectedHome, discountPct: 0 });
+                        const unpriced = !!rate && !selectedHome;
+                        return (
+                          <>
+                            <div className="p">
+                              {unpriced ? "from " : ""}
+                              {formatDollars(cardQuote.subtotalCents)}
+                            </div>
+                            {cardQuote.surchargeCents > 0 && (
+                              <div className="d" style={{ marginTop: 2 }}>
+                                {formatDollars(s.base_price_cents)} + {formatDollars(cardQuote.surchargeCents)} for your home
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
                     </button>
                     <button
                       type="button"
@@ -438,8 +484,28 @@ export default function BookingWizard({
                 </p>
               );
             })}
+            {quote && !covered && (quote.surchargeCents > 0 || quote.discountPct > 0) && (
+              <div style={{ marginTop: 12, fontSize: 13, color: "#4a544e", display: "grid", gap: 4 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>{selectedService?.name}</span>
+                  <span>{formatDollars(quote.baseCents)}</span>
+                </div>
+                {quote.surchargeLines.map((line) => (
+                  <div key={line.label} style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span>{line.label}</span>
+                    <span>+{formatDollars(line.cents)}</span>
+                  </div>
+                ))}
+                {quote.discountPct > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span>Member discount ({quote.discountPct}%)</span>
+                    <span>-{formatDollars(quote.subtotalCents - quote.totalCents)}</span>
+                  </div>
+                )}
+              </div>
+            )}
             <p className="price-line" style={{ marginTop: 10 }}>
-              {priceCents === 0 ? "Covered by membership" : `$${(priceCents / 100).toFixed(0)}`}
+              {priceCents === 0 ? "Covered by membership" : formatDollars(priceCents)}
             </p>
           </div>
 

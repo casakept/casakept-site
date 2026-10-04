@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import AddPropertyForm from "@/components/account/AddPropertyForm";
 import DeletePropertyButton from "@/components/account/DeletePropertyButton";
+import EditHomeDetails from "@/components/account/EditHomeDetails";
 import { describeProperty } from "@/lib/propertyDetails";
 
 export const metadata: Metadata = {
@@ -41,8 +42,12 @@ export default async function PropertiesPage() {
                       <br />
                       {p.city}, {p.state} {p.zip}
                     </p>
-                    {describeProperty(p) && (
+                    {describeProperty(p) ? (
                       <p style={{ fontSize: 13, color: "#6a746c", marginTop: 6 }}>{describeProperty(p)}</p>
+                    ) : (
+                      <p style={{ fontSize: 13, color: "var(--chile)", marginTop: 6 }}>
+                        Home details needed — we price cleanings by bedrooms and bathrooms.
+                      </p>
                     )}
                     {p.access_notes && (
                       <p style={{ fontSize: 12, color: "#9aa49d", marginTop: 6 }}>{p.access_notes}</p>
@@ -50,6 +55,11 @@ export default async function PropertiesPage() {
                   </div>
                   <DeletePropertyButton propertyId={p.id} />
                 </div>
+                <EditHomeDetails
+                  propertyId={p.id}
+                  startOpen={p.bedrooms == null}
+                  details={{ bedrooms: p.bedrooms, bathrooms: p.bathrooms, sq_ft_min: p.sq_ft_min, extra_rooms: p.extra_rooms }}
+                />
               </div>
             ))}
           </div>

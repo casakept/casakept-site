@@ -100,7 +100,7 @@ export const SERVICE_DETAILS: Record<string, ServiceDetail> = {
     footnote: "New members get 15% off their first deep clean. Included quarterly on Casa Completa.",
   },
   "Move-in / move-out clean": {
-    summaryTag: "Starting price -- scopes above 2,500 sq ft priced per walkthrough",
+    summaryTag: "Starting price -- larger homes priced by bedrooms, bathrooms, and extra rooms",
     paragraphs: [
       "Everything in a Deep Clean, done to move-out standard, plus a deposit-back photo set documenting the home's condition when we leave.",
     ],

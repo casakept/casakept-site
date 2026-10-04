@@ -955,6 +955,39 @@ export type Database = {
           },
         ]
       }
+      service_size_rates: {
+        Row: {
+          created_at: string
+          extra_bedroom_cents: number
+          extra_half_bath_cents: number
+          extra_room_cents: number
+          included_bathrooms: number
+          included_bedrooms: number
+          service_type: Database["public"]["Enums"]["service_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          extra_bedroom_cents: number
+          extra_half_bath_cents: number
+          extra_room_cents: number
+          included_bathrooms?: number
+          included_bedrooms?: number
+          service_type: Database["public"]["Enums"]["service_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          extra_bedroom_cents?: number
+          extra_half_bath_cents?: number
+          extra_room_cents?: number
+          included_bathrooms?: number
+          included_bedrooms?: number
+          service_type?: Database["public"]["Enums"]["service_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       services: {
         Row: {
           active: boolean

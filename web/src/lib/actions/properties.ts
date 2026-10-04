@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { isValidBathrooms, isValidBedrooms, isValidExtraRoom, isValidSqFtMin } from "@/lib/propertyDetails";
+import { parseHomeDetailsForm } from "@/lib/propertyDetails";
 
 export type PropertyActionState = {
   error?: string;
@@ -32,22 +32,8 @@ export async function addPropertyAction(
     return { error: "Address, city, and ZIP are required." };
   }
 
-  // Number("") is 0, so check for a missing value explicitly -- 0 is a
-  // legitimate sq ft selection ("Under 1,000") but never a valid bedroom
-  // or bathroom count.
-  const bedroomsRaw = String(formData.get("bedrooms") ?? "");
-  const bathroomsRaw = String(formData.get("bathrooms") ?? "");
-  const sqFtRaw = String(formData.get("sq_ft_min") ?? "");
-  const bedrooms = bedroomsRaw === "" ? NaN : Number(bedroomsRaw);
-  const bathrooms = bathroomsRaw === "" ? NaN : Number(bathroomsRaw);
-  const sqFtMin = sqFtRaw === "" ? NaN : Number(sqFtRaw);
-
-  if (!isValidBedrooms(bedrooms)) return { error: "Choose the number of bedrooms." };
-  if (!isValidBathrooms(bathrooms)) return { error: "Choose the number of bathrooms." };
-  if (!isValidSqFtMin(sqFtMin)) return { error: "Choose your home's approximate square footage." };
-
-  const extraRooms = [...new Set(formData.getAll("extra_rooms").map(String))];
-  if (!extraRooms.every(isValidExtraRoom)) return { error: "One of the extra rooms isn't valid." };
+  const details = parseHomeDetailsForm(formData);
+  if ("error" in details) return { error: details.error };
 
   const { data: property, error } = await supabase
     .from("properties")
@@ -60,10 +46,7 @@ export async function addPropertyAction(
       state,
       zip,
       access_notes: accessNotes,
-      bedrooms,
-      bathrooms,
-      sq_ft_min: sqFtMin,
-      extra_rooms: extraRooms,
+      ...details.value,
     })
     .select("id")
     .single();
@@ -73,6 +56,36 @@ export async function addPropertyAction(
   revalidatePath("/account/properties");
   revalidatePath("/account/book");
   return { success: true, propertyId: property.id };
+}
+
+// properties_all_own RLS is the ownership gate: a property that isn't the
+// caller's matches zero rows and the update no-ops.
+export async function updatePropertyDetailsAction(
+  propertyId: string,
+  _prevState: PropertyActionState,
+  formData: FormData
+): Promise<PropertyActionState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "You must be logged in." };
+
+  const details = parseHomeDetailsForm(formData);
+  if ("error" in details) return { error: details.error };
+
+  const { data, error } = await supabase
+    .from("properties")
+    .update(details.value)
+    .eq("id", propertyId)
+    .select("id")
+    .maybeSingle();
+  if (error) return { error: error.message };
+  if (!data) return { error: "That property wasn't found." };
+
+  revalidatePath("/account/properties");
+  revalidatePath("/account/book");
+  return { success: true };
 }
 
 export async function deletePropertyAction(propertyId: string) {

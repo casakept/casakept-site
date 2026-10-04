@@ -47,3 +47,4 @@ scripts/.redo_test_admin.json
 next-env.d.ts
 scripts/.p1_test_customer.json
 scripts/.p2_test.json
+scripts/.p4_test.json

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createPublicClient } from "@/lib/supabase/public";
 import { SERVICE_LABELS, FREQUENCY_LABELS } from "@/lib/serviceLabels";
+import { describeSizePricing } from "@/lib/homePricing";
 import { NON_MEMBER_BOOKING_HORIZON_DAYS, MEMBER_BOOKING_HORIZON_DAYS } from "@/lib/bookingHorizon";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -47,6 +48,12 @@ export default async function PricingPage() {
     .from("plan_entitlements")
     .select("plan_id, service_type, quantity, frequency")
     .in("plan_id", (plans ?? []).map((p) => p.id));
+
+  const { data: sizeRates } = await supabase
+    .from("service_size_rates")
+    .select("service_type, included_bedrooms, included_bathrooms, extra_bedroom_cents, extra_half_bath_cents, extra_room_cents")
+    .order("service_type");
+  const sizePricingCopy = describeSizePricing(sizeRates ?? [], (t) => SERVICE_LABELS[t as keyof typeof SERVICE_LABELS] ?? t);
 
   const deepClean = services?.find((s) => s.service_type === "deep_clean");
   const deepCleanDiscounted = deepClean ? deepClean.base_price_cents * 0.85 : null;
@@ -154,7 +161,7 @@ export default async function PricingPage() {
             ))}
           </div>
           <p style={{ marginTop: 20, fontSize: 13, color: "#7a8078" }}>
-            Pricing covers homes up to 2,500 sq ft; add $30 per visit for each additional 500 sq ft. Grocery and
+            {sizePricingCopy} Grocery and
             restock pricing excludes cost of groceries — billed at actual cost with a receipt photo, no markup.
             Memberships renew automatically until cancelled, and require a three-month minimum, month-to-month
             thereafter.

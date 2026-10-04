@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createPublicClient } from "@/lib/supabase/public";
 import { SERVICE_DETAILS } from "@/lib/serviceDetails";
+import { SERVICE_LABELS } from "@/lib/serviceLabels";
+import { describeSizePricing } from "@/lib/homePricing";
 
 export const metadata: Metadata = {
   title: "Services & What's Included",
@@ -27,6 +29,11 @@ export default async function ServicesPage() {
   const deepPrice = services?.find((s) => s.service_type === "deep_clean")?.base_price_cents ?? 32500;
   const errandToGoPrice = services?.find((s) => s.name === "Errands - To Go")?.base_price_cents ?? 3500;
   const errandWaitPrice = services?.find((s) => s.name === "Errands - Wait at Home")?.base_price_cents ?? 3000;
+  const { data: sizeRates } = await supabase
+    .from("service_size_rates")
+    .select("service_type, included_bedrooms, included_bathrooms, extra_bedroom_cents, extra_half_bath_cents, extra_room_cents")
+    .order("service_type");
+  const sizePricingCopy = describeSizePricing(sizeRates ?? [], (t) => SERVICE_LABELS[t as keyof typeof SERVICE_LABELS] ?? t);
   const deepDiscountedPrice = Math.floor((deepPrice * 0.85) / 100);
   const standardDetail = SERVICE_DETAILS["Standard clean"];
   const deepDetail = SERVICE_DETAILS["Deep clean"];
@@ -200,9 +207,8 @@ export default async function ServicesPage() {
             </div>
           </div>
           <p style={{ marginTop: 22, fontSize: 13, color: "#7a8078" }}>
-            Pricing covers homes up to 2,500 sq ft; add $30 per visit for each
-            additional 500 sq ft. Anything quoted separately is confirmed in
-            writing before work begins.
+            {sizePricingCopy} Anything quoted separately is confirmed in writing
+            before work begins.
           </p>
           <div style={{ marginTop: 26 }}>
             <Link className="btn" href="/book">

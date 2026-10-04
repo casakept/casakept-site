@@ -66,3 +66,35 @@ export function describeProperty(p: PropertyDetails): string | null {
   }
   return parts.length > 0 ? parts.join(" · ") : null;
 }
+
+export type HomeDetailsInput = {
+  bedrooms: number;
+  bathrooms: number;
+  sq_ft_min: number;
+  extra_rooms: string[];
+};
+
+// Number("") is 0, so a missing value is checked explicitly -- 0 is a
+// legitimate sq ft selection ("Under 1,000") but never a valid bedroom or
+// bathroom count.
+function numberOrNaN(raw: FormDataEntryValue | null): number {
+  const s = String(raw ?? "");
+  return s === "" ? NaN : Number(s);
+}
+
+// Shared by adding a property and editing a home's details, so the same
+// required fields and ranges apply to both.
+export function parseHomeDetailsForm(formData: FormData): { error: string } | { value: HomeDetailsInput } {
+  const bedrooms = numberOrNaN(formData.get("bedrooms"));
+  const bathrooms = numberOrNaN(formData.get("bathrooms"));
+  const sqFtMin = numberOrNaN(formData.get("sq_ft_min"));
+
+  if (!isValidBedrooms(bedrooms)) return { error: "Choose the number of bedrooms." };
+  if (!isValidBathrooms(bathrooms)) return { error: "Choose the number of bathrooms." };
+  if (!isValidSqFtMin(sqFtMin)) return { error: "Choose your home's approximate square footage." };
+
+  const extraRooms = [...new Set(formData.getAll("extra_rooms").map(String))];
+  if (!extraRooms.every(isValidExtraRoom)) return { error: "One of the extra rooms isn't valid." };
+
+  return { value: { bedrooms, bathrooms, sq_ft_min: sqFtMin, extra_rooms: extraRooms } };
+}

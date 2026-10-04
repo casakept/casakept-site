@@ -16,11 +16,11 @@ export default async function BookPage({ searchParams }: PageProps<"/account/boo
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: properties }, { data: services }, { data: subscription }, { data: staff }, { data: products }] =
+  const [{ data: properties }, { data: services }, { data: subscription }, { data: staff }, { data: products }, { data: sizeRates }] =
     await Promise.all([
       supabase
         .from("properties")
-        .select("id, label, address_line1, city")
+        .select("id, label, address_line1, city, bedrooms, bathrooms, extra_rooms")
         .eq("customer_id", user!.id)
         .order("created_at", { ascending: true }),
       supabase
@@ -42,6 +42,9 @@ export default async function BookPage({ searchParams }: PageProps<"/account/boo
         .select("id, category, name, is_default")
         .eq("active", true)
         .order("sort_order", { ascending: true }),
+      supabase
+        .from("service_size_rates")
+        .select("service_type, included_bedrooms, included_bathrooms, extra_bedroom_cents, extra_half_bath_cents, extra_room_cents"),
     ]);
 
   let entitlements: { service_type: string; quantity: number }[] = [];
@@ -94,6 +97,7 @@ export default async function BookPage({ searchParams }: PageProps<"/account/boo
         usage={usage}
         staff={staff ?? []}
         products={products ?? []}
+        sizeRates={sizeRates ?? []}
       />
     </div>
   );
