@@ -65,3 +65,67 @@ export function accuracyByCrew(rows: ReviewInputRow[]): CrewAccuracy[] {
   }
   return [...byStaff.values()];
 }
+
+// ---- Upsell tracking ----------------------------------------------------
+// An "approved" call is a standard clean the customer agreed to upgrade to a
+// deep clean and paid for. This is for seeing who is producing upgrades --
+// it is deliberately separate from accuracy and isn't part of any scorecard.
+
+export type UpsellInputRow = {
+  staffId: string;
+  status: string;
+  amountCents: number;
+};
+
+export type CrewUpsells = {
+  staffId: string;
+  approved: number;
+  revenueCents: number;
+  // Calls the customer was actually asked about (approved, declined, or no
+  // response). A call the crew withdrew never reached a decision.
+  offered: number;
+  // approved / offered, whole percent; null until something was offered.
+  conversionPct: number | null;
+};
+
+export function upsellsByCrew(rows: UpsellInputRow[]): CrewUpsells[] {
+  const byStaff = new Map<string, CrewUpsells>();
+  for (const row of rows) {
+    if (!["approved", "declined", "expired"].includes(row.status)) continue;
+    let c = byStaff.get(row.staffId);
+    if (!c) {
+      c = { staffId: row.staffId, approved: 0, revenueCents: 0, offered: 0, conversionPct: null };
+      byStaff.set(row.staffId, c);
+    }
+    c.offered++;
+    if (row.status === "approved") {
+      c.approved++;
+      c.revenueCents += row.amountCents;
+    }
+  }
+  for (const c of byStaff.values()) {
+    c.conversionPct = c.offered > 0 ? Math.round((c.approved / c.offered) * 100) : null;
+  }
+  return [...byStaff.values()];
+}
+
+export type UpsellPeriod = "this_month" | "last_month" | "all";
+
+export function isUpsellPeriod(value: string): value is UpsellPeriod {
+  return value === "this_month" || value === "last_month" || value === "all";
+}
+
+// The "YYYY-MM" a period covers, given today's date ("YYYY-MM-DD") in the
+// business time zone; null for all time.
+export function periodMonth(period: UpsellPeriod, todayISO: string): string | null {
+  if (period === "all") return null;
+  const month = todayISO.slice(0, 7);
+  if (period === "this_month") return month;
+  const [year, m] = month.split("-").map(Number);
+  return m === 1 ? `${year - 1}-12` : `${year}-${String(m - 1).padStart(2, "0")}`;
+}
+
+export function monthLabel(yyyymm: string): string {
+  const [year, m] = yyyymm.split("-").map(Number);
+  return new Date(year, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
