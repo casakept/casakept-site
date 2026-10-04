@@ -1362,6 +1362,10 @@ export type Database = {
           photo_paths: string[]
           reasons: string[]
           responded_at: string | null
+          review_notes: string | null
+          review_verdict: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           staff_id: string
           status: Database["public"]["Enums"]["upgrade_request_status"]
           stripe_payment_intent_id: string | null
@@ -1381,6 +1385,10 @@ export type Database = {
           photo_paths: string[]
           reasons: string[]
           responded_at?: string | null
+          review_notes?: string | null
+          review_verdict?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           staff_id: string
           status?: Database["public"]["Enums"]["upgrade_request_status"]
           stripe_payment_intent_id?: string | null
@@ -1400,6 +1408,10 @@ export type Database = {
           photo_paths?: string[]
           reasons?: string[]
           responded_at?: string | null
+          review_notes?: string | null
+          review_verdict?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           staff_id?: string
           status?: Database["public"]["Enums"]["upgrade_request_status"]
           stripe_payment_intent_id?: string | null
@@ -1419,6 +1431,13 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upgrade_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

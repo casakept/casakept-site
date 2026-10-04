@@ -39,7 +39,7 @@ export default async function AdminBookingsPage({ searchParams }: PageProps<"/ad
        property:properties(address_line1, city),
        preferred_staff:staff!bookings_preferred_staff_id_fkey(profile:profiles!staff_id_fkey(full_name)),
        product_selections:booking_product_selections(category, product:cleaning_products(name)),
-       upgrade_requests(status, reasons, amount_cents, created_at),
+       upgrade_requests(status, reasons, amount_cents, created_at, review_verdict),
        arrival_photos:visit_arrival_photos(id, photo_path, created_at),
        checkin:visit_checkins(check_in_at, check_in_lat, check_in_lng, check_out_at, check_out_lat, check_out_lng)`
     )

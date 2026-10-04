@@ -6,6 +6,7 @@ import { updateBookingAction, type AdminBookingActionState } from "@/lib/actions
 import FirstCleanNote from "@/components/FirstCleanNote";
 import { UPGRADE_STATUS_LABELS, reasonLabel } from "@/lib/upgradeRequests";
 import { formatDollars } from "@/lib/homePricing";
+import { verdictLabel } from "@/lib/upgradeReview";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import { PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
 import type { Database } from "@/lib/supabase/database.types";
@@ -35,7 +36,7 @@ export type AdminBooking = {
   upgrade_consent_at: string | null;
   upgrade_max_cents: number | null;
   assigned_staff_id: string | null;
-  upgrade_requests: { status: string; reasons: string[]; amount_cents: number; created_at: string }[];
+  upgrade_requests: { status: string; reasons: string[]; amount_cents: number; created_at: string; review_verdict: string | null }[];
   arrival_photos: { id: string; url: string }[];
   customer: { full_name: string | null; phone: string | null } | null;
   property: { address_line1: string; city: string } | null;
@@ -106,6 +107,7 @@ export default function BookingRow({
                   {latest.status === "approved" ? `approved (${formatDollars(latest.amount_cents)})` : (UPGRADE_STATUS_LABELS[latest.status] ?? latest.status).toLowerCase()}
                   {" — "}
                   {latest.reasons.map(reasonLabel).join("; ")}
+                  {latest.review_verdict ? ` · reviewed: ${verdictLabel(latest.review_verdict).toLowerCase()}` : ""}
                 </p>
               );
             })()}

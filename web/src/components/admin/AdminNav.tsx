@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/admin/products", label: "Products" },
   { href: "/admin/scores", label: "Scores" },
   { href: "/admin/redo-requests", label: "Re-do requests" },
+  { href: "/admin/upgrade-reviews", label: "Deep-clean calls" },
   { href: "/admin/bonuses", label: "Bonuses" },
   { href: "/admin/estimates", label: "Estimates" },
 ];
