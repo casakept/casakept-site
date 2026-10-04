@@ -6,7 +6,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { getOrCreateStripeCustomerId } from "@/lib/stripe/customer";
 import { stripe } from "@/lib/stripe/server";
 import { entitlementPeriodFor, widestFrequency } from "@/lib/entitlements";
-import { buildQuote, homeSizeFromProperty } from "@/lib/homePricing";
+import { buildQuote, homeSizeFromProperty, upgradeDifferenceCents } from "@/lib/homePricing";
+import { parseConditionAnswers, recommendsDeep } from "@/lib/firstCleanAssessment";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import { sendNotificationEmail } from "@/lib/email/send";
 import { bookingConfirmedEmail, bookingCancelledEmail } from "@/lib/email/templates";
@@ -140,6 +141,72 @@ export async function createBookingAction(
   const quoteTotal = (discountPct: number) =>
     buildQuote({ baseCents: service.base_price_cents, rate: sizeRate, home, discountPct }).totalCents;
 
+  // First standard clean at this home: the customer answers a few condition
+  // questions and agrees that the crew may offer a deep-clean upgrade on
+  // arrival. Re-checked here rather than trusting the wizard, and the
+  // maximum the upgrade could add is computed here too -- it's what they're
+  // told they're agreeing to.
+  let firstCleanFields: {
+    condition_answers: Database["public"]["Tables"]["bookings"]["Insert"]["condition_answers"];
+    recommended_deep: boolean;
+    upgrade_consent_at: string;
+    upgrade_max_cents: number | null;
+  } | null = null;
+
+  if (service.service_type === "standard_clean") {
+    const { count: priorCleans } = await supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("property_id", propertyId)
+      .in("service_type", ["standard_clean", "deep_clean", "move_out_clean"])
+      .in("status", ["confirmed", "assigned", "in_progress", "completed"]);
+
+    if ((priorCleans ?? 0) === 0) {
+      const answers = parseConditionAnswers(formData);
+      if (!answers) return { error: "Tell us a bit about your home's condition before booking your first clean." };
+      if (formData.get("upgrade_consent") !== "on") {
+        return { error: "Please confirm the first-visit note about a possible deep-clean upgrade to continue." };
+      }
+
+      const [{ data: deepService }, { data: deepRate }] = await Promise.all([
+        supabase
+          .from("services")
+          .select("base_price_cents, member_discount_pct")
+          .eq("service_type", "deep_clean")
+          .eq("active", true)
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("service_size_rates")
+          .select("service_type, included_bedrooms, included_bathrooms, extra_bedroom_cents, extra_half_bath_cents, extra_room_cents")
+          .eq("service_type", "deep_clean")
+          .maybeSingle(),
+      ]);
+      const planDiscountPct = subscription?.membership_plans?.extra_services_discount_pct ?? 0;
+      const standardQuote = buildQuote({
+        baseCents: service.base_price_cents,
+        rate: sizeRate,
+        home,
+        discountPct: subscription ? Math.max(planDiscountPct, service.member_discount_pct) : 0,
+      });
+      const deepQuote = deepService
+        ? buildQuote({
+            baseCents: deepService.base_price_cents,
+            rate: deepRate,
+            home,
+            discountPct: subscription ? Math.max(planDiscountPct, deepService.member_discount_pct) : 0,
+          })
+        : null;
+
+      firstCleanFields = {
+        condition_answers: answers,
+        recommended_deep: recommendsDeep(answers),
+        upgrade_consent_at: new Date().toISOString(),
+        upgrade_max_cents: deepQuote ? upgradeDifferenceCents(standardQuote, deepQuote) : null,
+      };
+    }
+  }
+
   let priceCents = quoteTotal(0);
   let coveredByEntitlement = false;
   let claimedUsage:
@@ -206,6 +273,7 @@ export async function createBookingAction(
       preferred_staff_id: preferredStaffId,
       price_cents: priceCents,
       covered_by_entitlement: coveredByEntitlement,
+      ...(firstCleanFields ?? {}),
       // Confirmed immediately when nothing needs to be charged; otherwise
       // stays pending until the payment_intent.succeeded webhook flips it.
       status: priceCents > 0 && !coveredByEntitlement ? "pending" : "confirmed",
@@ -288,6 +356,7 @@ export async function createBookingAction(
       coveredByEntitlement,
       assignmentNote,
       products: productsForEmail,
+      upgradeNote: firstCleanFields ? { maxCents: firstCleanFields.upgrade_max_cents } : null,
     });
     await sendNotificationEmail({
       customerId: user!.id,

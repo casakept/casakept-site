@@ -47,6 +47,18 @@ export default async function BookPage({ searchParams }: PageProps<"/account/boo
         .select("service_type, included_bedrooms, included_bathrooms, extra_bedroom_cents, extra_half_bath_cents, extra_room_cents"),
     ]);
 
+  // Homes with no cleaning on the books yet -- their first standard clean
+  // gets the condition questions and the deep-clean recommendation. Unpaid
+  // checkouts (pending) don't count as a clean.
+  const { data: priorCleans } = await supabase
+    .from("bookings")
+    .select("property_id")
+    .eq("customer_id", user!.id)
+    .in("service_type", ["standard_clean", "deep_clean", "move_out_clean"])
+    .in("status", ["confirmed", "assigned", "in_progress", "completed"]);
+  const propertiesWithCleans = new Set((priorCleans ?? []).map((b) => b.property_id));
+  const firstCleanPropertyIds = (properties ?? []).map((p) => p.id).filter((id) => !propertiesWithCleans.has(id));
+
   let entitlements: { service_type: string; quantity: number }[] = [];
   let usage: { service_type: string; used_count: number; included_count: number }[] = [];
 
@@ -99,6 +111,7 @@ export default async function BookPage({ searchParams }: PageProps<"/account/boo
         staff={staff ?? []}
         products={products ?? []}
         sizeRates={sizeRates ?? []}
+        firstCleanPropertyIds={firstCleanPropertyIds}
       />
     </div>
   );

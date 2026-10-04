@@ -51,6 +51,10 @@ export function bookingConfirmedEmail(params: {
   // type has any (see PRODUCT_CATEGORIES_BY_SERVICE) -- omitted/empty for
   // service types with no product step at all.
   products?: { categoryLabel: string; productName: string }[];
+  // Present for a customer's first standard clean at a home, where they
+  // agreed the crew may offer a deep-clean upgrade on arrival (maxCents is
+  // the most it could add; null if that couldn't be worked out).
+  upgradeNote?: { maxCents: number | null } | null;
 }): { subject: string; html: string } {
   const {
     serviceLabel,
@@ -61,7 +65,13 @@ export function bookingConfirmedEmail(params: {
     coveredByEntitlement,
     assignmentNote,
     products,
+    upgradeNote,
   } = params;
+  const upgradeHtml = upgradeNote
+    ? `<p style="margin:20px 0 0;line-height:1.6;font-size:14px;color:#3c463f;"><b>About your first visit:</b> when we arrive, the crew will check your home's condition. If it needs a deep clean to be done properly, we'll call you first (and text if we can't reach you) so you can approve an upgrade${
+        upgradeNote.maxCents != null ? ` for up to ${formatCents(upgradeNote.maxCents)} more` : ""
+      } or keep the standard clean as booked. Nothing extra is charged without your approval.</p>`
+    : "";
   const priceLine = coveredByEntitlement
     ? "Covered by your membership -- no charge."
     : `${formatCents(priceCents)} charged.`;
@@ -102,6 +112,7 @@ export function bookingConfirmedEmail(params: {
       </table>
       ${assignmentHtml}
       ${productsHtml}
+      ${upgradeHtml}
       <p style="margin:24px 0 0;line-height:1.6;">Need to make a change? Reach out or manage it from your account.</p>
       `
     ),

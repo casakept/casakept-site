@@ -81,6 +81,7 @@ export type Database = {
       bookings: {
         Row: {
           assigned_staff_id: string | null
+          condition_answers: Json | null
           covered_by_entitlement: boolean
           created_at: string
           customer_id: string
@@ -89,6 +90,7 @@ export type Database = {
           preferred_staff_id: string | null
           price_cents: number
           property_id: string
+          recommended_deep: boolean | null
           redo_of_booking_id: string | null
           scheduled_date: string
           service_id: string | null
@@ -97,9 +99,12 @@ export type Database = {
           subscription_id: string | null
           time_window: Database["public"]["Enums"]["schedule_window"]
           updated_at: string
+          upgrade_consent_at: string | null
+          upgrade_max_cents: number | null
         }
         Insert: {
           assigned_staff_id?: string | null
+          condition_answers?: Json | null
           covered_by_entitlement?: boolean
           created_at?: string
           customer_id: string
@@ -108,6 +113,7 @@ export type Database = {
           preferred_staff_id?: string | null
           price_cents?: number
           property_id: string
+          recommended_deep?: boolean | null
           redo_of_booking_id?: string | null
           scheduled_date: string
           service_id?: string | null
@@ -116,9 +122,12 @@ export type Database = {
           subscription_id?: string | null
           time_window: Database["public"]["Enums"]["schedule_window"]
           updated_at?: string
+          upgrade_consent_at?: string | null
+          upgrade_max_cents?: number | null
         }
         Update: {
           assigned_staff_id?: string | null
+          condition_answers?: Json | null
           covered_by_entitlement?: boolean
           created_at?: string
           customer_id?: string
@@ -127,6 +136,7 @@ export type Database = {
           preferred_staff_id?: string | null
           price_cents?: number
           property_id?: string
+          recommended_deep?: boolean | null
           redo_of_booking_id?: string | null
           scheduled_date?: string
           service_id?: string | null
@@ -135,6 +145,8 @@ export type Database = {
           subscription_id?: string | null
           time_window?: Database["public"]["Enums"]["schedule_window"]
           updated_at?: string
+          upgrade_consent_at?: string | null
+          upgrade_max_cents?: number | null
         }
         Relationships: [
           {

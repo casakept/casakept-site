@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { advanceBookingStatusAction } from "@/lib/actions/staff-bookings";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import { PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
+import FirstCleanNote from "@/components/FirstCleanNote";
 import ChecklistSection, { type ChecklistCatalogItem, type ChecklistEntry } from "./ChecklistSection";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -23,6 +24,10 @@ export type StaffJob = {
   service_type: ServiceType;
   notes: string | null;
   redo_of_booking_id: string | null;
+  condition_answers: Database["public"]["Tables"]["bookings"]["Row"]["condition_answers"];
+  recommended_deep: boolean | null;
+  upgrade_consent_at: string | null;
+  upgrade_max_cents: number | null;
   customer: { full_name: string | null; phone: string | null } | null;
   property: { address_line1: string; city: string } | null;
   checkin: { check_in_at: string | null; check_out_at: string | null } | null;
@@ -93,6 +98,12 @@ export default function JobRow({
             {job.property?.address_line1}, {job.property?.city}
           </p>
           {job.notes && <p style={{ fontSize: 12, color: "#9aa49d" }}>{job.notes}</p>}
+          <FirstCleanNote
+            conditionAnswers={job.condition_answers}
+            recommendedDeep={job.recommended_deep}
+            upgradeConsentAt={job.upgrade_consent_at}
+            upgradeMaxCents={job.upgrade_max_cents}
+          />
           {job.product_selections.length > 0 && (
             <p style={{ fontSize: 12, color: "#9aa49d" }}>
               {job.product_selections

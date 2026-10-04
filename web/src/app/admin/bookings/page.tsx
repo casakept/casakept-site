@@ -33,7 +33,7 @@ export default async function AdminBookingsPage({ searchParams }: PageProps<"/ad
   let bookingsQuery = supabase
     .from("bookings")
     .select(
-      `id, status, scheduled_date, time_window, service_type, price_cents, notes, assigned_staff_id,
+      `id, status, scheduled_date, time_window, service_type, price_cents, notes, condition_answers, recommended_deep, upgrade_consent_at, upgrade_max_cents, assigned_staff_id,
        customer:profiles!bookings_customer_id_fkey(full_name, phone),
        property:properties(address_line1, city),
        preferred_staff:staff!bookings_preferred_staff_id_fkey(profile:profiles!staff_id_fkey(full_name)),

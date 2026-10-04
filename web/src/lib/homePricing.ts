@@ -185,3 +185,12 @@ export type MembershipCadence = "monthly" | "annual";
 export function homeAddOnForCadence(monthlyCents: number, cadence: MembershipCadence, annualFactor: number): number {
   return cadence === "annual" ? Math.round(monthlyCents * 12 * annualFactor) : monthlyCents;
 }
+
+// The most a standard-to-deep upgrade could add at this home: the deep
+// clean's price minus the standard clean's, with the deep clean's member
+// discount applied to the difference. Shown to the customer up front so the
+// on-arrival upgrade offer never contains a number they haven't seen.
+export function upgradeDifferenceCents(standard: Quote, deep: Quote): number {
+  const diff = Math.max(0, deep.subtotalCents - standard.subtotalCents);
+  return Math.round(diff * (1 - deep.discountPct / 100));
+}

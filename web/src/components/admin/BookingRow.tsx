@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { updateBookingAction, type AdminBookingActionState } from "@/lib/actions/admin-bookings";
+import FirstCleanNote from "@/components/FirstCleanNote";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import { PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
 import type { Database } from "@/lib/supabase/database.types";
@@ -26,6 +27,10 @@ export type AdminBooking = {
   service_type: Database["public"]["Enums"]["service_type"];
   price_cents: number;
   notes: string | null;
+  condition_answers: Database["public"]["Tables"]["bookings"]["Row"]["condition_answers"];
+  recommended_deep: boolean | null;
+  upgrade_consent_at: string | null;
+  upgrade_max_cents: number | null;
   assigned_staff_id: string | null;
   customer: { full_name: string | null; phone: string | null } | null;
   property: { address_line1: string; city: string } | null;
@@ -87,6 +92,12 @@ export default function BookingRow({
             </p>
           )}
           {booking.notes && <p style={{ fontSize: 12, color: "#9aa49d" }}>{booking.notes}</p>}
+          <FirstCleanNote
+            conditionAnswers={booking.condition_answers}
+            recommendedDeep={booking.recommended_deep}
+            upgradeConsentAt={booking.upgrade_consent_at}
+            upgradeMaxCents={booking.upgrade_max_cents}
+          />
           {booking.product_selections.length > 0 && (
             <p style={{ fontSize: 12, color: "#9aa49d" }}>
               {booking.product_selections

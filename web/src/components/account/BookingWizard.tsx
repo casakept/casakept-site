@@ -10,7 +10,9 @@ import { SERVICE_CATEGORIES } from "@/lib/serviceCategories";
 import { PRODUCT_CATEGORIES_BY_SERVICE, PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
 import { businessDateISO, businessDateISOPlusDays } from "@/lib/businessTime";
 import { NON_MEMBER_BOOKING_HORIZON_DAYS, MEMBER_BOOKING_HORIZON_DAYS } from "@/lib/bookingHorizon";
-import { buildQuote, formatDollars, homeSizeFromProperty, type SizeRate } from "@/lib/homePricing";
+import { buildQuote, formatDollars, homeSizeFromProperty, upgradeDifferenceCents, type SizeRate } from "@/lib/homePricing";
+import FirstCleanCondition from "@/components/account/FirstCleanCondition";
+import { answersComplete, recommendsDeep, type ConditionAnswers } from "@/lib/firstCleanAssessment";
 
 type Property = {
   id: string;
@@ -55,6 +57,7 @@ export default function BookingWizard({
   staff,
   products,
   sizeRates,
+  firstCleanPropertyIds,
 }: {
   properties: Property[];
   initialPropertyId: string | null;
@@ -67,6 +70,7 @@ export default function BookingWizard({
   staff: StaffMember[];
   products: Product[];
   sizeRates: SizeRate[];
+  firstCleanPropertyIds: string[];
 }) {
   const [state, formAction, pending] = useActionState(createBookingAction, initialState);
   const [paid, setPaid] = useState(false);
@@ -82,6 +86,8 @@ export default function BookingWizard({
   const [timeWindow, setTimeWindow] = useState("");
   const [preferredStaffId, setPreferredStaffId] = useState("");
   const [notes, setNotes] = useState("");
+  const [conditionAnswers, setConditionAnswers] = useState<Partial<ConditionAnswers>>({});
+  const [upgradeConsent, setUpgradeConsent] = useState(false);
   const [detailService, setDetailService] = useState<Service | null>(null);
   // Only overrides the customer explicitly picked -- categories with no
   // override fall back to that category's default product, computed below.
@@ -159,6 +165,23 @@ export default function BookingWizard({
   const covered = !!coverage && coverage.remaining > 0;
   const priceCents = covered ? 0 : (quote?.totalCents ?? 0);
 
+  // First standard clean at this home: condition questions, a deep-clean
+  // recommendation, and the up-front agreement about an on-arrival upgrade.
+  const needsCondition =
+    selectedService?.service_type === "standard_clean" && firstCleanPropertyIds.includes(propertyId);
+  const deepService = services.find((s) => s.service_type === "deep_clean") ?? null;
+  const deepQuote = deepService
+    ? buildQuote({
+        baseCents: deepService.base_price_cents,
+        rate: rateByServiceType.get("deep_clean") ?? null,
+        home: selectedHome,
+        discountPct: discountPctFor(deepService),
+      })
+    : null;
+  const upgradeMaxCents = quote && deepQuote ? upgradeDifferenceCents(quote, deepQuote) : null;
+  const conditionComplete = answersComplete(conditionAnswers);
+  const recommendDeep = conditionComplete && recommendsDeep(conditionAnswers);
+
   const today = businessDateISO();
   const bookingHorizonDays = hasSubscription ? MEMBER_BOOKING_HORIZON_DAYS : NON_MEMBER_BOOKING_HORIZON_DAYS;
   const maxBookableDate = businessDateISOPlusDays(bookingHorizonDays);
@@ -182,7 +205,9 @@ export default function BookingWizard({
   // Steps are always consecutive integers -- cleaner/products only bump the
   // cursor when they actually apply -- so Continue/Back can just be
   // step +/- 1 everywhere below with no gaps to special-case.
-  let stepCursor = 3;
+  let stepCursor = 2;
+  const conditionStep = needsCondition ? ++stepCursor : null;
+  const dateStep = ++stepCursor;
   const cleanerStep = isCleaning ? ++stepCursor : null;
   const productsStep = hasProductCategories ? ++stepCursor : null;
   const confirmStep = ++stepCursor;
@@ -190,7 +215,8 @@ export default function BookingWizard({
   function isStepValid(s: number): boolean {
     if (s === 1) return !!propertyId;
     if (s === 2) return !!serviceId && !needsHomeDetails;
-    if (s === 3) return !!scheduledDate && !!timeWindow;
+    if (conditionStep && s === conditionStep) return conditionComplete && upgradeConsent;
+    if (s === dateStep) return !!scheduledDate && !!timeWindow;
     return true; // cleaner and products steps are always optional
   }
 
@@ -241,6 +267,15 @@ export default function BookingWizard({
     <>
     <form action={formAction}>
       <input type="hidden" name="property_id" value={propertyId} />
+      {needsCondition && (
+        <>
+          <input type="hidden" name="cond_last_clean" value={conditionAnswers.last_clean ?? ""} />
+          <input type="hidden" name="cond_pets" value={conditionAnswers.pets ?? ""} />
+          <input type="hidden" name="cond_buildup" value={conditionAnswers.buildup ?? ""} />
+          <input type="hidden" name="cond_clutter" value={conditionAnswers.clutter ?? ""} />
+          {upgradeConsent && <input type="hidden" name="upgrade_consent" value="on" />}
+        </>
+      )}
       <input type="hidden" name="service_id" value={serviceId} />
       <input type="hidden" name="scheduled_date" value={scheduledDate} />
       <input type="hidden" name="time_window" value={timeWindow} />
@@ -256,7 +291,14 @@ export default function BookingWizard({
       <div className="wizard-steps">
         <span className={step === 1 ? "active" : step > 1 ? "done" : ""}>1. Property</span>
         <span className={step === 2 ? "active" : step > 2 ? "done" : ""}>2. Service</span>
-        <span className={step === 3 ? "active" : step > 3 ? "done" : ""}>3. Date &amp; time</span>
+        {conditionStep && (
+          <span className={step === conditionStep ? "active" : step > conditionStep ? "done" : ""}>
+            {conditionStep}. Your home
+          </span>
+        )}
+        <span className={step === dateStep ? "active" : step > dateStep ? "done" : ""}>
+          {dateStep}. Date &amp; time
+        </span>
         {cleanerStep && (
           <span className={step === cleanerStep ? "active" : step > cleanerStep ? "done" : ""}>
             {cleanerStep}. Cleaner
@@ -361,7 +403,21 @@ export default function BookingWizard({
         </div>
       )}
 
-      {step === 3 && (
+      {conditionStep && step === conditionStep && (
+        <FirstCleanCondition
+          answers={conditionAnswers}
+          onAnswer={(key, value) => setConditionAnswers((prev) => ({ ...prev, [key]: value }))}
+          complete={conditionComplete}
+          recommendDeep={recommendDeep}
+          deepPriceCents={deepQuote ? deepQuote.subtotalCents : null}
+          onSwitchToDeep={() => deepService && setServiceId(deepService.id)}
+          upgradeMaxCents={upgradeMaxCents}
+          consent={upgradeConsent}
+          onConsent={setUpgradeConsent}
+        />
+      )}
+
+      {step === dateStep && (
         <div style={{ display: "grid", gap: 12, maxWidth: 360, marginTop: 18 }}>
           <div className="field">
             <label htmlFor="scheduled_date">Date</label>

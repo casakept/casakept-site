@@ -321,7 +321,7 @@ async function handlePaymentIntentSucceeded(
     .update({ status: "confirmed" })
     .eq("id", payment.booking_id)
     .eq("status", "pending")
-    .select("service_type, scheduled_date, time_window, price_cents, customer_id, property_id, preferred_staff_id")
+    .select("service_type, scheduled_date, time_window, price_cents, customer_id, property_id, preferred_staff_id, upgrade_consent_at, upgrade_max_cents")
     .maybeSingle();
   if (bookingError) console.error("handlePaymentIntentSucceeded booking update failed:", bookingError);
   if (!booking) return;
@@ -371,6 +371,7 @@ async function handlePaymentIntentSucceeded(
     coveredByEntitlement: false,
     assignmentNote,
     products,
+    upgradeNote: booking.upgrade_consent_at ? { maxCents: booking.upgrade_max_cents } : null,
   });
   await sendNotificationEmail({
     customerId: booking.customer_id,
