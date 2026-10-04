@@ -112,9 +112,14 @@ export function buildQuote(params: {
   };
 }
 
-// Whole dollars when exact ($199), cents otherwise ($179.10).
+// Whole dollars when exact ($199), cents otherwise ($179.10), with
+// thousands separators ($1,855.67).
 export function formatDollars(cents: number): string {
-  return `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
+  const whole = cents % 100 === 0;
+  return `$${(cents / 100).toLocaleString("en-US", {
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: whole ? 0 : 2,
+  })}`;
 }
 
 const dollars = formatDollars;
@@ -139,4 +144,44 @@ export function describeSizePricing(
   return `Cleaning prices cover up to ${first.included_bedrooms} bedrooms and ${formatBathrooms(
     first.included_bathrooms
   )} bathrooms. For larger homes: ${clauses.join("; ")}.`;
+}
+
+// ---- Memberships -------------------------------------------------------
+// A membership's included visits are free at the plan price, so a larger
+// home is charged as a recurring "home size" add-on instead of per visit:
+// each included whole-home cleaning x that service's per-visit home-size
+// amount. plan_entitlements quantities are per calendar month, except
+// quarterly ones (per quarter), which are spread back down to monthly.
+
+export type PlanEntitlementLite = { service_type: string; quantity: number; frequency: string };
+
+export function monthlyHomeAddOnCents(
+  entitlements: PlanEntitlementLite[],
+  rates: SizeRate[],
+  home: HomeSize
+): number {
+  let total = 0;
+  for (const e of entitlements) {
+    const rate = rates.find((r) => r.service_type === e.service_type);
+    if (!rate) continue;
+    const perMonth = e.frequency === "quarterly" ? e.quantity / 3 : e.quantity;
+    total += sizeSurchargeCents(rate, home) * perMonth;
+  }
+  return Math.round(total);
+}
+
+// Annual plans are priced at monthly x 12 less a discount (10% today); the
+// add-on gets the same treatment so annual members aren't charged more for
+// their home than the plan itself is discounted.
+export function annualFactorFor(plan: { monthly_price_cents: number; annual_price_cents: number | null }): number {
+  if (plan.annual_price_cents == null || plan.monthly_price_cents <= 0) return 1;
+  return plan.annual_price_cents / (plan.monthly_price_cents * 12);
+}
+
+export type MembershipCadence = "monthly" | "annual";
+
+// The add-on as billed per period: monthly for monthly members, yearly
+// for annual ones.
+export function homeAddOnForCadence(monthlyCents: number, cadence: MembershipCadence, annualFactor: number): number {
+  return cadence === "annual" ? Math.round(monthlyCents * 12 * annualFactor) : monthlyCents;
 }

@@ -11,6 +11,7 @@ import {
   membershipPastDueEmail,
 } from "@/lib/email/templates";
 import { PRODUCT_CATEGORY_LABELS } from "@/lib/productCategories";
+import { addOnCentsFromItems } from "@/lib/membershipAddOn";
 import type { Database } from "@/lib/supabase/database.types";
 
 export const runtime = "nodejs";
@@ -147,6 +148,9 @@ async function syncSubscription(supabase: ServiceClient, sub: Stripe.Subscriptio
         // whatever Stripe reports as the source of truth.
         cancel_at_period_end: sub.cancel_at_period_end,
         cancel_at: sub.cancel_at ? new Date(sub.cancel_at * 1000).toISOString() : null,
+        // Stripe is the source of truth for what's billed, so this follows
+        // the add-on line however it got there (signup or a re-price).
+        home_size_addon_cents: addOnCentsFromItems(sub),
       })
       .eq("id", existing.id);
     if (error) console.error("syncSubscription update failed:", error);
@@ -191,6 +195,8 @@ async function syncSubscription(supabase: ServiceClient, sub: Stripe.Subscriptio
     current_period_end: periodEnd.toISOString(),
     minimum_term_end: minimumTermEnd.toISOString(),
     billing_cadence: billingCadence,
+    property_id: sub.metadata.property_id || null,
+    home_size_addon_cents: addOnCentsFromItems(sub),
   });
   if (error) {
     console.error("syncSubscription insert failed:", error);
@@ -210,13 +216,16 @@ async function syncSubscription(supabase: ServiceClient, sub: Stripe.Subscriptio
 
   const { data: plan } = await supabase
     .from("membership_plans")
-    .select("name, monthly_price_cents")
+    .select("name, monthly_price_cents, annual_price_cents")
     .eq("id", planId)
     .maybeSingle();
   if (plan) {
+    const isAnnual = billingCadence === "annual";
     const { subject, html } = membershipActiveEmail({
       planName: plan.name,
-      monthlyPriceCents: plan.monthly_price_cents,
+      priceCents: isAnnual ? (plan.annual_price_cents ?? plan.monthly_price_cents) : plan.monthly_price_cents,
+      period: isAnnual ? "yr" : "mo",
+      homeSizeAddOnCents: addOnCentsFromItems(sub),
     });
     await sendNotificationEmail({
       customerId,

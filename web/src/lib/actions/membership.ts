@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getOrCreateStripeCustomerId } from "@/lib/stripe/customer";
 import { stripe } from "@/lib/stripe/server";
 import { effectiveCancelDate } from "@/lib/membershipCancellation";
+import { computeHomeAddOn, ensureHomeAddOnProduct } from "@/lib/membershipAddOn";
 import type Stripe from "stripe";
 
 export type BillingCadence = "monthly" | "annual";
@@ -20,9 +21,15 @@ export type StartSubscriptionResult =
 // Stripe confirms the subscription is actually active (see
 // customer.subscription.updated in that route), since that's the only
 // trustworthy signal that payment succeeded.
+//
+// A membership covers one home (propertyId): its included visits only apply
+// there, and a home larger than the plan's included size adds a recurring
+// "home size" line to the subscription, priced here from the saved property
+// -- never from anything the browser sends.
 export async function startSubscriptionAction(
   planId: string,
-  cadence: BillingCadence = "monthly"
+  cadence: BillingCadence = "monthly",
+  propertyId: string
 ): Promise<StartSubscriptionResult> {
   const supabase = await createClient();
   const {
@@ -57,15 +64,30 @@ export async function startSubscriptionAction(
     return { error: "You already have an active membership. Contact us to change plans." };
   }
 
+  const addOn = await computeHomeAddOn({ supabase, customerId: user.id, planId: plan.id, propertyId, cadence });
+  if ("error" in addOn) return { error: addOn.error };
+
   const stripeCustomerId = await getOrCreateStripeCustomerId(
     supabase,
     user.id,
     user.email
   );
 
+  const items: Stripe.SubscriptionCreateParams.Item[] = [{ price: stripePriceId }];
+  if (addOn.periodCents > 0) {
+    items.push({
+      price_data: {
+        currency: "usd",
+        product: await ensureHomeAddOnProduct(stripe),
+        unit_amount: addOn.periodCents,
+        recurring: { interval: cadence === "annual" ? "year" : "month" },
+      },
+    });
+  }
+
   const subscription = await stripe.subscriptions.create({
     customer: stripeCustomerId,
-    items: [{ price: stripePriceId }],
+    items,
     payment_behavior: "default_incomplete",
     payment_settings: { save_default_payment_method: "on_subscription" },
     expand: ["latest_invoice.confirmation_secret"],
@@ -74,6 +96,7 @@ export async function startSubscriptionAction(
       plan_id: plan.id,
       minimum_term_months: String(plan.minimum_term_months),
       billing_cadence: cadence,
+      property_id: propertyId,
     },
   });
 

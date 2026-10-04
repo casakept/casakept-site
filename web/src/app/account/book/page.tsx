@@ -31,7 +31,7 @@ export default async function BookPage({ searchParams }: PageProps<"/account/boo
       supabase
         .from("subscriptions")
         .select(
-          "id, plan_id, current_period_start, membership_plans(extra_services_discount_pct)"
+          "id, plan_id, property_id, current_period_start, membership_plans(extra_services_discount_pct)"
         )
         .eq("customer_id", user!.id)
         .eq("status", "active")
@@ -92,6 +92,7 @@ export default async function BookPage({ searchParams }: PageProps<"/account/boo
         initialPropertyId={initialPropertyId}
         services={services ?? []}
         hasSubscription={!!subscription}
+        membershipPropertyId={subscription?.property_id ?? null}
         extraServicesDiscountPct={subscription?.membership_plans?.extra_services_discount_pct ?? 0}
         entitlements={entitlements}
         usage={usage}

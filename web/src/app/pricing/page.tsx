@@ -92,6 +92,12 @@ export default async function PricingPage() {
                     {formatCents(plan.monthly_price_cents)}
                     <small>/mo</small>
                   </div>
+                  {sizeRates && sizeRates.length > 0 && (
+                    <p style={{ fontSize: 12, color: featured ? "#aebbaf" : "#7a8078" }}>
+                      Covers one home up to {sizeRates[0].included_bedrooms} bedrooms &amp;{" "}
+                      {sizeRates[0].included_bathrooms} bathrooms — larger homes add a home-size amount
+                    </p>
+                  )}
                   {plan.annual_price_cents != null && (
                     <p style={{ fontSize: 12, color: featured ? "#aebbaf" : "#7a8078" }}>
                       or {formatCents(plan.annual_price_cents)}/yr — save 10% billed annually
@@ -161,7 +167,9 @@ export default async function PricingPage() {
             ))}
           </div>
           <p style={{ marginTop: 20, fontSize: 13, color: "#7a8078" }}>
-            {sizePricingCopy} Grocery and
+            {sizePricingCopy} A membership covers one home; for a larger home, the membership adds a recurring
+            home-size amount equal to that home-size rate for each cleaning your plan includes, shown when you pick your
+            home. Grocery and
             restock pricing excludes cost of groceries — billed at actual cost with a receipt photo, no markup.
             Memberships renew automatically until cancelled, and require a three-month minimum, month-to-month
             thereafter.

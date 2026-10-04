@@ -10,8 +10,10 @@ export default function EditHomeDetails({
   propertyId,
   details,
   startOpen,
+  isMembershipHome = false,
 }: {
   propertyId: string;
+  isMembershipHome?: boolean;
   details: { bedrooms: number | null; bathrooms: number | null; sq_ft_min: number | null; extra_rooms: string[] };
   startOpen: boolean;
 }) {
@@ -41,6 +43,12 @@ export default function EditHomeDetails({
   return (
     <form action={formAction} style={{ marginTop: 14, maxWidth: 480 }}>
       {state.error && <p className="form-msg error">{state.error}</p>}
+      {isMembershipHome && (
+        <p style={{ fontSize: 12, color: "#6a746c", marginBottom: 12 }}>
+          This is your membership home. Changing its bedrooms, bathrooms, or extra rooms updates your home-size
+          add-on, starting from your next renewal.
+        </p>
+      )}
       <HomeDetailsFields idPrefix={`${propertyId}-`} defaults={details} />
       <div style={{ display: "flex", gap: 8 }}>
         <button className="btn" type="submit" disabled={pending} style={{ padding: "8px 20px", fontSize: 14 }}>

@@ -52,7 +52,7 @@ export async function GET(request: Request) {
     const { data: subscriptions, error } = await supabase
       .from("subscriptions")
       .select(
-        "id, customer_id, current_period_start, current_period_end, membership_plans(name, annual_price_cents)"
+        "id, customer_id, current_period_start, current_period_end, home_size_addon_cents, membership_plans(name, annual_price_cents)"
       )
       .eq("billing_cadence", "annual")
       .eq("status", "active")
@@ -80,8 +80,11 @@ export async function GET(request: Request) {
         continue;
       }
 
-      const priceCents = sub.membership_plans.annual_price_cents;
-      if (priceCents == null) continue;
+      const planPriceCents = sub.membership_plans.annual_price_cents;
+      if (planPriceCents == null) continue;
+      // What the card will actually be charged: the plan plus the yearly
+      // home-size add-on, if their home has one.
+      const priceCents = planPriceCents + sub.home_size_addon_cents;
 
       const { subject, html } = membershipRenewalReminderEmail({
         planName: sub.membership_plans.name,

@@ -2,6 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import { stripe } from "@/lib/stripe/server";
+import { syncMembershipHomeAddOn } from "@/lib/membershipAddOn";
 import { parseHomeDetailsForm } from "@/lib/propertyDetails";
 
 export type PropertyActionState = {
@@ -83,6 +86,31 @@ export async function updatePropertyDetailsAction(
   if (error) return { error: error.message };
   if (!data) return { error: "That property wasn't found." };
 
+  // If this is a membership's home, its size drives the recurring home-size
+  // add-on -- re-price it now so billing follows the home's real details.
+  // Not via the customer's own client: it touches Stripe and the
+  // subscription row.
+  const serviceClient = createServiceClient();
+  const { data: membership } = await serviceClient
+    .from("subscriptions")
+    .select("id")
+    .eq("property_id", propertyId)
+    .in("status", ["active", "past_due"])
+    .maybeSingle();
+  if (membership) {
+    try {
+      const result = await syncMembershipHomeAddOn(serviceClient, stripe, membership.id);
+      if ("error" in result) throw new Error(result.error);
+    } catch (err) {
+      console.error("updatePropertyDetailsAction: add-on sync failed", { propertyId, err });
+      revalidatePath("/account/properties");
+      return {
+        error: "Your details were saved, but we couldn't update your membership's home-size add-on. We'll sort it out.",
+      };
+    }
+    revalidatePath("/account/membership");
+  }
+
   revalidatePath("/account/properties");
   revalidatePath("/account/book");
   return { success: true };
@@ -90,6 +118,17 @@ export async function updatePropertyDetailsAction(
 
 export async function deletePropertyAction(propertyId: string) {
   const supabase = await createClient();
+
+  const { data: membership } = await supabase
+    .from("subscriptions")
+    .select("id")
+    .eq("property_id", propertyId)
+    .in("status", ["active", "past_due"])
+    .maybeSingle();
+  if (membership) {
+    throw new Error("This is your membership's home, so it can't be removed while the membership is active.");
+  }
+
   const { error } = await supabase.from("properties").delete().eq("id", propertyId);
   if (error) throw new Error(error.message);
   revalidatePath("/account/properties");

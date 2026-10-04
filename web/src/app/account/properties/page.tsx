@@ -15,6 +15,14 @@ export default async function PropertiesPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const { data: membership } = await supabase
+    .from("subscriptions")
+    .select("property_id")
+    .eq("customer_id", user!.id)
+    .in("status", ["active", "past_due"])
+    .maybeSingle();
+  const membershipPropertyId = membership?.property_id ?? null;
+
   const { data: properties } = await supabase
     .from("properties")
     .select("id, label, address_line1, address_line2, city, state, zip, access_notes, bedrooms, bathrooms, sq_ft_min, extra_rooms")
@@ -49,15 +57,21 @@ export default async function PropertiesPage() {
                         Home details needed — we price cleanings by bedrooms and bathrooms.
                       </p>
                     )}
+                    {p.id === membershipPropertyId && (
+                      <p style={{ marginTop: 6 }}>
+                        <span className="status-badge founding">Membership home</span>
+                      </p>
+                    )}
                     {p.access_notes && (
                       <p style={{ fontSize: 12, color: "#9aa49d", marginTop: 6 }}>{p.access_notes}</p>
                     )}
                   </div>
-                  <DeletePropertyButton propertyId={p.id} />
+                  {p.id !== membershipPropertyId && <DeletePropertyButton propertyId={p.id} />}
                 </div>
                 <EditHomeDetails
                   propertyId={p.id}
                   startOpen={p.bedrooms == null}
+                  isMembershipHome={p.id === membershipPropertyId}
                   details={{ bedrooms: p.bedrooms, bathrooms: p.bathrooms, sq_ft_min: p.sq_ft_min, extra_rooms: p.extra_rooms }}
                 />
               </div>

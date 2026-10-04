@@ -36,7 +36,7 @@ export default async function AdminCustomerDetailPage({ params }: PageProps<"/ad
     supabase
       .from("subscriptions")
       .select(
-        "status, current_period_end, minimum_term_end, cancel_at, billing_cadence, membership_plans(name, monthly_price_cents, annual_price_cents)"
+        "status, current_period_end, minimum_term_end, cancel_at, billing_cadence, home_size_addon_cents, property:properties(label, address_line1, city), membership_plans(name, monthly_price_cents, annual_price_cents)"
       )
       .eq("customer_id", id)
       .order("created_at", { ascending: false })
@@ -99,6 +99,17 @@ export default async function AdminCustomerDetailPage({ params }: PageProps<"/ad
               ).toFixed(0)}
               {subscription.billing_cadence === "annual" ? "/yr" : "/mo"}
             </p>
+            {subscription.home_size_addon_cents > 0 && (
+              <p style={{ fontSize: 13 }}>
+                + ${(subscription.home_size_addon_cents / 100).toFixed(subscription.home_size_addon_cents % 100 === 0 ? 0 : 2)}
+                {subscription.billing_cadence === "annual" ? "/yr" : "/mo"} home size
+              </p>
+            )}
+            {subscription.property && (
+              <p style={{ fontSize: 13, color: "#6a746c" }}>
+                Covers {subscription.property.label || subscription.property.address_line1}, {subscription.property.city}
+              </p>
+            )}
             <p style={{ marginTop: 10 }}>
               Current period ends {new Date(subscription.current_period_end).toLocaleDateString()}.
             </p>

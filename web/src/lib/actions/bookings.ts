@@ -60,7 +60,7 @@ export async function createBookingAction(
   const { data: subscription } = await supabase
     .from("subscriptions")
     .select(
-      "id, plan_id, created_at, current_period_start, current_period_end, membership_plans(extra_services_discount_pct)"
+      "id, plan_id, property_id, created_at, current_period_start, current_period_end, membership_plans(extra_services_discount_pct)"
     )
     .eq("customer_id", user.id)
     .eq("status", "active")
@@ -162,10 +162,13 @@ export async function createBookingAction(
       .eq("plan_id", subscription.plan_id)
       .eq("service_type", service.service_type);
 
-    const includedCount = (planEntitlements ?? []).reduce(
-      (sum, e) => sum + e.quantity,
-      0
-    );
+    // A membership covers one home: included visits only apply there, so
+    // one membership can't cover several properties. (property_id is null
+    // only for memberships that predate this rule, which stay unrestricted.)
+    const atMembershipHome = !subscription.property_id || subscription.property_id === property.id;
+    const includedCount = atMembershipHome
+      ? (planEntitlements ?? []).reduce((sum, e) => sum + e.quantity, 0)
+      : 0;
 
     if (includedCount > 0) {
       const frequency = widestFrequency(planEntitlements!.map((e) => e.frequency));

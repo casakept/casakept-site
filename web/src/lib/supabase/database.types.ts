@@ -1206,9 +1206,11 @@ export type Database = {
           current_period_end: string
           current_period_start: string
           customer_id: string
+          home_size_addon_cents: number
           id: string
           minimum_term_end: string
           plan_id: string
+          property_id: string | null
           status: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
@@ -1223,9 +1225,11 @@ export type Database = {
           current_period_end: string
           current_period_start?: string
           customer_id: string
+          home_size_addon_cents?: number
           id?: string
           minimum_term_end: string
           plan_id: string
+          property_id?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -1240,9 +1244,11 @@ export type Database = {
           current_period_end?: string
           current_period_start?: string
           customer_id?: string
+          home_size_addon_cents?: number
           id?: string
           minimum_term_end?: string
           plan_id?: string
+          property_id?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
@@ -1261,6 +1267,13 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "membership_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
             referencedColumns: ["id"]
           },
         ]

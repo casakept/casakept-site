@@ -209,9 +209,11 @@ export function csatSurveyEmail(params: {
 
 export function membershipActiveEmail(params: {
   planName: string;
-  monthlyPriceCents: number;
+  priceCents: number;
+  period: "mo" | "yr";
+  homeSizeAddOnCents: number;
 }): { subject: string; html: string } {
-  const { planName, monthlyPriceCents } = params;
+  const { planName, priceCents, period, homeSizeAddOnCents } = params;
   return {
     subject: `Welcome to ${planName}`,
     html: emailLayout(
@@ -219,8 +221,11 @@ export function membershipActiveEmail(params: {
       `
       <h2 style="color:#1B3B31;margin:0 0 12px;">Welcome to ${planName}</h2>
       <p style="margin:0 0 20px;line-height:1.6;">
-        Your membership is active at ${formatCents(monthlyPriceCents)}/mo. Your included visits and
-        perks are ready to use whenever you book.
+        Your membership is active at ${formatCents(priceCents)}/${period}${
+          homeSizeAddOnCents > 0
+            ? `, plus a ${formatCents(homeSizeAddOnCents)}/${period} home-size add-on for your home`
+            : ""
+        }. Your included visits and perks are ready to use whenever you book.
       </p>
       <a href="${SITE_URL}/account/book" style="display:inline-block;background:#E9A23B;color:#1B3B31;font-weight:700;padding:10px 22px;border-radius:99px;text-decoration:none;">
         Book your first visit

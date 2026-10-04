@@ -8,6 +8,7 @@ import { entitlementPeriodFor } from "@/lib/entitlements";
 import { effectiveCancelDate } from "@/lib/membershipCancellation";
 import { NON_MEMBER_BOOKING_HORIZON_DAYS, MEMBER_BOOKING_HORIZON_DAYS } from "@/lib/bookingHorizon";
 import { SERVICE_LABELS } from "@/lib/serviceLabels";
+import { formatDollars } from "@/lib/homePricing";
 import type { Database } from "@/lib/supabase/database.types";
 
 export const metadata: Metadata = {
@@ -25,7 +26,7 @@ export default async function MembershipPage() {
   const { data: subscription } = await supabase
     .from("subscriptions")
     .select(
-      "id, status, created_at, current_period_start, current_period_end, minimum_term_end, cancel_at, billing_cadence, stripe_subscription_id, membership_plans(id, name, monthly_price_cents, annual_price_cents)"
+      "id, status, created_at, current_period_start, current_period_end, minimum_term_end, cancel_at, billing_cadence, stripe_subscription_id, home_size_addon_cents, property:properties(label, address_line1, city), membership_plans(id, name, monthly_price_cents, annual_price_cents)"
     )
     .eq("customer_id", user!.id)
     .in("status", ["active", "past_due"])
@@ -67,6 +68,22 @@ export default async function MembershipPage() {
             ${(priceCents / 100).toFixed(0)}
             {isAnnual ? "/yr" : "/mo"}
           </p>
+          {subscription.home_size_addon_cents > 0 && (
+            <p style={{ fontSize: 13 }}>
+              + {formatDollars(subscription.home_size_addon_cents)}
+              {isAnnual ? "/yr" : "/mo"} home size ·{" "}
+              <b>
+                {formatDollars(priceCents + subscription.home_size_addon_cents)}
+                {isAnnual ? "/yr" : "/mo"} total
+              </b>
+            </p>
+          )}
+          {subscription.property && (
+            <p style={{ fontSize: 13, color: "#6a746c", marginTop: 6 }}>
+              Covers {subscription.property.label || subscription.property.address_line1}, {subscription.property.city}.
+              Included visits apply to this home only.
+            </p>
+          )}
           <p style={{ marginTop: 10 }}>
             Current period ends{" "}
             {new Date(subscription.current_period_end).toLocaleDateString()}.
@@ -156,12 +173,20 @@ export default async function MembershipPage() {
     .eq("active", true)
     .order("sort_order", { ascending: true });
 
-  const [{ data: entitlements }, { data: services }] = await Promise.all([
+  const [{ data: entitlements }, { data: services }, { data: properties }, { data: sizeRates }] = await Promise.all([
     supabase
       .from("plan_entitlements")
       .select("plan_id, service_type, quantity, frequency")
       .in("plan_id", (plans ?? []).map((p) => p.id)),
     supabase.from("services").select("service_type, base_price_cents").eq("active", true),
+    supabase
+      .from("properties")
+      .select("id, label, address_line1, city, bedrooms, bathrooms, sq_ft_min, extra_rooms")
+      .eq("customer_id", user!.id)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("service_size_rates")
+      .select("service_type, included_bedrooms, included_bathrooms, extra_bedroom_cents, extra_half_bath_cents, extra_room_cents"),
   ]);
 
   const servicePriceByType = new Map((services ?? []).map((s) => [s.service_type, s.base_price_cents]));
@@ -209,7 +234,7 @@ export default async function MembershipPage() {
         {MEMBER_BOOKING_HORIZON_DAYS} days ahead — non-members are limited to {NON_MEMBER_BOOKING_HORIZON_DAYS}),
         and a member discount on everything else.
       </p>
-      <MembershipPlansPicker plans={pickerPlans} />
+      <MembershipPlansPicker plans={pickerPlans} properties={properties ?? []} sizeRates={sizeRates ?? []} />
     </div>
   );
 }

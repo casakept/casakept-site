@@ -239,6 +239,7 @@ export default async function HomePage() {
           <h2>Pick your peace of mind.</h2>
           <p className="lede" style={{ marginTop: 12 }}>
             Three plans, three-month minimum, founding rate locked for life.
+            Each membership covers one home; larger homes add a home-size amount.
             Every membership includes priority scheduling — book up to{" "}
             {MEMBER_BOOKING_HORIZON_DAYS} days ahead, non-members{" "}
             {NON_MEMBER_BOOKING_HORIZON_DAYS} — and the re-do guarantee.

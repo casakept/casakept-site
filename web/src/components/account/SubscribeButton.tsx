@@ -8,9 +8,11 @@ import { StripePaymentForm } from "@/components/stripe/PaymentForm";
 export default function SubscribeButton({
   planId,
   cadence = "monthly",
+  propertyId,
 }: {
   planId: string;
   cadence?: BillingCadence;
+  propertyId: string;
 }) {
   const router = useRouter();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -21,7 +23,7 @@ export default function SubscribeButton({
   async function handleJoin() {
     setStarting(true);
     setError(null);
-    const result = await startSubscriptionAction(planId, cadence);
+    const result = await startSubscriptionAction(planId, cadence, propertyId);
     setStarting(false);
     if ("error" in result) {
       setError(result.error);

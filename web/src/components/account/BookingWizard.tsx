@@ -48,6 +48,7 @@ export default function BookingWizard({
   initialPropertyId,
   services,
   hasSubscription,
+  membershipPropertyId,
   extraServicesDiscountPct,
   entitlements,
   usage,
@@ -59,6 +60,7 @@ export default function BookingWizard({
   initialPropertyId: string | null;
   services: Service[];
   hasSubscription: boolean;
+  membershipPropertyId: string | null;
   extraServicesDiscountPct: number;
   entitlements: Entitlement[];
   usage: Usage[];
@@ -119,15 +121,19 @@ export default function BookingWizard({
   const selectedService = services.find((s) => s.id === serviceId) ?? null;
   const isCleaning = selectedService ? CLEANING_SERVICE_TYPES.has(selectedService.service_type) : false;
 
+  // Included visits only apply at the membership's home (null = a membership
+  // from before that rule, which isn't restricted).
+  const atMembershipHome = !membershipPropertyId || membershipPropertyId === propertyId;
+
   const coverage = useMemo(() => {
-    if (!hasSubscription || !selectedService) return null;
+    if (!hasSubscription || !selectedService || !atMembershipHome) return null;
     const included = entitlements
       .filter((e) => e.service_type === selectedService.service_type)
       .reduce((sum, e) => sum + e.quantity, 0);
     if (included === 0) return null;
     const used = usage.find((u) => u.service_type === selectedService.service_type)?.used_count ?? 0;
     return { included, used, remaining: Math.max(included - used, 0) };
-  }, [hasSubscription, selectedService, entitlements, usage]);
+  }, [hasSubscription, selectedService, entitlements, usage, atMembershipHome]);
 
   const selectedHome = homeSizeFromProperty(properties.find((p) => p.id === propertyId));
   const rateByServiceType = useMemo(() => new Map(sizeRates.map((r) => [r.service_type, r])), [sizeRates]);
@@ -290,6 +296,15 @@ export default function BookingWizard({
             Pick one service per visit. Want more than one? Book this one first -- you&apos;ll get a one-click
             option to add another visit right after.
           </p>
+          {hasSubscription && !atMembershipHome && (
+            <p className="form-msg">
+              Your membership&apos;s included visits apply to{" "}
+              {properties.find((p) => p.id === membershipPropertyId)?.label ||
+                properties.find((p) => p.id === membershipPropertyId)?.address_line1 ||
+                "your membership home"}
+              . Visits at this home are priced as extra visits, with your member discount.
+            </p>
+          )}
           {needsHomeDetails && (
             <p className="form-msg error">
               This home needs its bedroom and bathroom details before we can price this service.{" "}
