@@ -9,7 +9,6 @@ import type { Database } from "@/lib/supabase/database.types";
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
 const STATUS_OPTIONS: { value: BookingStatus; label: string }[] = [
-  { value: "pending", label: "Pending" },
   { value: "confirmed", label: "Confirmed" },
   { value: "assigned", label: "Assigned" },
   { value: "in_progress", label: "In progress" },

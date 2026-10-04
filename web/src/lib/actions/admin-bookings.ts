@@ -10,7 +10,6 @@ export type AdminBookingActionState = {
 };
 
 const BOOKING_STATUSES = new Set<Database["public"]["Enums"]["booking_status"]>([
-  "pending",
   "confirmed",
   "assigned",
   "in_progress",
