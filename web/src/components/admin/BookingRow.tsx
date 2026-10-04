@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Image from "next/image";
 import { updateBookingAction, type AdminBookingActionState } from "@/lib/actions/admin-bookings";
 import FirstCleanNote from "@/components/FirstCleanNote";
 import { UPGRADE_STATUS_LABELS, reasonLabel } from "@/lib/upgradeRequests";
@@ -35,6 +36,7 @@ export type AdminBooking = {
   upgrade_max_cents: number | null;
   assigned_staff_id: string | null;
   upgrade_requests: { status: string; reasons: string[]; amount_cents: number; created_at: string }[];
+  arrival_photos: { id: string; url: string }[];
   customer: { full_name: string | null; phone: string | null } | null;
   property: { address_line1: string; city: string } | null;
   preferred_staff: { profile: { full_name: string | null } | null } | null;
@@ -107,6 +109,27 @@ export default function BookingRow({
                 </p>
               );
             })()}
+          {booking.arrival_photos.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <p style={{ fontSize: 11, color: "#9aa49d" }}>
+                Arrival photos ({booking.arrival_photos.length}) — tap to enlarge
+              </p>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                {booking.arrival_photos.map((p) => (
+                  <a key={p.id} href={p.url} target="_blank" rel="noopener noreferrer">
+                    <Image
+                      src={p.url}
+                      alt="Arrival photo"
+                      width={64}
+                      height={64}
+                      unoptimized
+                      style={{ objectFit: "cover", borderRadius: 6, border: "1.5px solid var(--line)" }}
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
           <FirstCleanNote
             conditionAnswers={booking.condition_answers}
             recommendedDeep={booking.recommended_deep}

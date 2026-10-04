@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import BookingRow, { type AdminBooking } from "@/components/admin/BookingRow";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -39,6 +40,7 @@ export default async function AdminBookingsPage({ searchParams }: PageProps<"/ad
        preferred_staff:staff!bookings_preferred_staff_id_fkey(profile:profiles!staff_id_fkey(full_name)),
        product_selections:booking_product_selections(category, product:cleaning_products(name)),
        upgrade_requests(status, reasons, amount_cents, created_at),
+       arrival_photos:visit_arrival_photos(id, photo_path, created_at),
        checkin:visit_checkins(check_in_at, check_in_lat, check_in_lng, check_out_at, check_out_lat, check_out_lng)`
     )
     .order("scheduled_date", { ascending: true });
@@ -57,6 +59,16 @@ export default async function AdminBookingsPage({ searchParams }: PageProps<"/ad
       .select("id, profile:profiles!staff_id_fkey(full_name)")
       .eq("active", true),
   ]);
+
+  // Arrival photos are in the private bucket -- sign them in one batch.
+  const photoPaths = (bookings ?? []).flatMap((b) => b.arrival_photos.map((p) => p.photo_path));
+  const photoUrlByPath = new Map<string, string>();
+  if (photoPaths.length > 0) {
+    const { data: signed } = await createServiceClient().storage.from("visit-photos").createSignedUrls(photoPaths, 60 * 60);
+    signed?.forEach((s) => {
+      if (s.signedUrl && s.path) photoUrlByPath.set(s.path, s.signedUrl);
+    });
+  }
 
   const staffOptions = (staffRows ?? [])
     .map((s) => ({ id: s.id, name: s.profile?.full_name ?? "Unnamed staff" }))
@@ -81,7 +93,20 @@ export default async function AdminBookingsPage({ searchParams }: PageProps<"/ad
       ) : (
         <div style={{ display: "grid", gap: 12 }}>
           {bookings.map((b) => (
-            <BookingRow key={b.id} booking={b as AdminBooking} staffOptions={staffOptions} />
+            <BookingRow
+              key={b.id}
+              booking={
+                {
+                  ...b,
+                  arrival_photos: b.arrival_photos
+                    .slice()
+                    .sort((x, y) => x.created_at.localeCompare(y.created_at))
+                    .map((p) => ({ id: p.id, url: photoUrlByPath.get(p.photo_path) ?? "" }))
+                    .filter((p) => p.url),
+                } as AdminBooking
+              }
+              staffOptions={staffOptions}
+            />
           ))}
         </div>
       )}
