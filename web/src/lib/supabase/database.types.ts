@@ -1348,6 +1348,120 @@ export type Database = {
           },
         ]
       }
+      upgrade_requests: {
+        Row: {
+          amount_cents: number
+          booking_id: string
+          call_outcome: string | null
+          called_at: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          link_sent_at: string | null
+          notes: string | null
+          photo_paths: string[]
+          reasons: string[]
+          responded_at: string | null
+          staff_id: string
+          status: Database["public"]["Enums"]["upgrade_request_status"]
+          stripe_payment_intent_id: string | null
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          booking_id: string
+          call_outcome?: string | null
+          called_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          link_sent_at?: string | null
+          notes?: string | null
+          photo_paths: string[]
+          reasons: string[]
+          responded_at?: string | null
+          staff_id: string
+          status?: Database["public"]["Enums"]["upgrade_request_status"]
+          stripe_payment_intent_id?: string | null
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          booking_id?: string
+          call_outcome?: string | null
+          called_at?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          link_sent_at?: string | null
+          notes?: string | null
+          photo_paths?: string[]
+          reasons?: string[]
+          responded_at?: string | null
+          staff_id?: string
+          status?: Database["public"]["Enums"]["upgrade_request_status"]
+          stripe_payment_intent_id?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "upgrade_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "upgrade_requests_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visit_arrival_photos: {
+        Row: {
+          booking_id: string
+          created_at: string
+          id: string
+          photo_path: string
+          staff_id: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          id?: string
+          photo_path: string
+          staff_id: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          id?: string
+          photo_path?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_arrival_photos_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_arrival_photos_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       visit_checkins: {
         Row: {
           booking_id: string
@@ -1568,6 +1682,7 @@ export type Database = {
       staff_bonus_type: "90_day" | "anniversary" | "household_retention" | "crew_of_month" | "referral"
       subscription_status: "active" | "paused" | "cancelled" | "past_due"
       user_role: "customer" | "staff" | "admin"
+      upgrade_request_status: "flagged" | "link_sent" | "approved" | "declined" | "expired" | "cancelled"
       visit_score_event: "none" | "no_show" | "callback" | "safety_violation"
     }
     CompositeTypes: {
@@ -1739,6 +1854,7 @@ export const Constants = {
       ],
       subscription_status: ["active", "paused", "cancelled", "past_due"],
       user_role: ["customer", "staff", "admin"],
+      upgrade_request_status: ["flagged", "link_sent", "approved", "declined", "expired", "cancelled"],
       visit_score_event: ["none", "no_show", "callback", "safety_violation"],
     },
   },

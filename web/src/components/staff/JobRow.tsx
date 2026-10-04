@@ -5,6 +5,7 @@ import { advanceBookingStatusAction } from "@/lib/actions/staff-bookings";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import { PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
 import FirstCleanNote from "@/components/FirstCleanNote";
+import ArrivalCheck, { type UpgradeRequestView } from "./ArrivalCheck";
 import ChecklistSection, { type ChecklistCatalogItem, type ChecklistEntry } from "./ChecklistSection";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -28,6 +29,8 @@ export type StaffJob = {
   recommended_deep: boolean | null;
   upgrade_consent_at: string | null;
   upgrade_max_cents: number | null;
+  arrival_photos: { id: string; url: string }[];
+  upgrade_request: UpgradeRequestView | null;
   customer: { full_name: string | null; phone: string | null } | null;
   property: { address_line1: string; city: string } | null;
   checkin: { check_in_at: string | null; check_out_at: string | null } | null;
@@ -150,6 +153,19 @@ export default function JobRow({
           {job.checkin.check_out_at &&
             ` · Out: ${new Date(job.checkin.check_out_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`}
         </p>
+      )}
+
+      {showChecklist && (
+        <ArrivalCheck
+          bookingId={job.id}
+          staffId={staffId}
+          photos={job.arrival_photos}
+          canRecommend={
+            job.service_type === "standard_clean" && !!job.upgrade_consent_at && job.upgrade_max_cents != null
+          }
+          request={job.upgrade_request}
+          customerPhone={job.customer?.phone ?? null}
+        />
       )}
 
       {showChecklist && (

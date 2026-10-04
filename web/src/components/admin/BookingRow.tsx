@@ -3,6 +3,8 @@
 import { useActionState } from "react";
 import { updateBookingAction, type AdminBookingActionState } from "@/lib/actions/admin-bookings";
 import FirstCleanNote from "@/components/FirstCleanNote";
+import { UPGRADE_STATUS_LABELS, reasonLabel } from "@/lib/upgradeRequests";
+import { formatDollars } from "@/lib/homePricing";
 import { SERVICE_LABELS, WINDOW_LABELS } from "@/lib/serviceLabels";
 import { PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/productCategories";
 import type { Database } from "@/lib/supabase/database.types";
@@ -32,6 +34,7 @@ export type AdminBooking = {
   upgrade_consent_at: string | null;
   upgrade_max_cents: number | null;
   assigned_staff_id: string | null;
+  upgrade_requests: { status: string; reasons: string[]; amount_cents: number; created_at: string }[];
   customer: { full_name: string | null; phone: string | null } | null;
   property: { address_line1: string; city: string } | null;
   preferred_staff: { profile: { full_name: string | null } | null } | null;
@@ -92,6 +95,18 @@ export default function BookingRow({
             </p>
           )}
           {booking.notes && <p style={{ fontSize: 12, color: "#9aa49d" }}>{booking.notes}</p>}
+          {booking.upgrade_requests.length > 0 &&
+            (() => {
+              const latest = [...booking.upgrade_requests].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+              return (
+                <p style={{ fontSize: 12, marginTop: 6 }}>
+                  <b style={{ color: "var(--verde)" }}>Deep-clean upgrade:</b>{" "}
+                  {latest.status === "approved" ? `approved (${formatDollars(latest.amount_cents)})` : (UPGRADE_STATUS_LABELS[latest.status] ?? latest.status).toLowerCase()}
+                  {" — "}
+                  {latest.reasons.map(reasonLabel).join("; ")}
+                </p>
+              );
+            })()}
           <FirstCleanNote
             conditionAnswers={booking.condition_answers}
             recommendedDeep={booking.recommended_deep}

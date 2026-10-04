@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import JobRow, { type StaffJob } from "@/components/staff/JobRow";
+import { createServiceClient } from "@/lib/supabase/service";
+import { stripe } from "@/lib/stripe/server";
+import { expireDueUpgradeRequests } from "@/lib/upgradeExpiry";
 
 export const metadata: Metadata = {
   title: "Staff · My jobs",
@@ -33,7 +36,7 @@ export default async function StaffJobsPage({ searchParams }: PageProps<"/staff/
   let query = supabase
     .from("bookings")
     .select(
-      "id, status, scheduled_date, time_window, service_type, property_id, notes, redo_of_booking_id, condition_answers, recommended_deep, upgrade_consent_at, upgrade_max_cents, customer:profiles!bookings_customer_id_fkey(full_name, phone), property:properties(address_line1, city), checkin:visit_checkins(check_in_at, check_out_at), checklist:visit_checklist_entries(checklist_item_id, completed, photo_path), product_selections:booking_product_selections(category, product:cleaning_products(name))"
+      "id, status, scheduled_date, time_window, service_type, property_id, notes, redo_of_booking_id, condition_answers, recommended_deep, upgrade_consent_at, upgrade_max_cents, customer:profiles!bookings_customer_id_fkey(full_name, phone), property:properties(address_line1, city), checkin:visit_checkins(check_in_at, check_out_at), checklist:visit_checklist_entries(checklist_item_id, completed, photo_path), product_selections:booking_product_selections(category, product:cleaning_products(name)), arrival_photos:visit_arrival_photos(id, photo_path, created_at), upgrade_requests(id, status, reasons, token, called_at, call_outcome, expires_at, amount_cents, created_at)"
     )
     .eq("assigned_staff_id", user!.id)
     .order("scheduled_date", { ascending: filter !== "completed" });
@@ -46,7 +49,18 @@ export default async function StaffJobsPage({ searchParams }: PageProps<"/staff/
     query = query.eq("status", "cancelled");
   }
 
-  const [{ data: jobs }, { data: checklistItems }] = await Promise.all([
+  // Apply any upgrade offer whose response window has closed before showing
+  // the crew its state.
+  const { data: inProgress } = await supabase
+    .from("bookings")
+    .select("id")
+    .eq("assigned_staff_id", user!.id)
+    .eq("status", "in_progress");
+  if (inProgress && inProgress.length > 0) {
+    await expireDueUpgradeRequests(createServiceClient(), stripe, { bookingIds: inProgress.map((b) => b.id) });
+  }
+
+  const [{ data: rawJobs }, { data: checklistItems }] = await Promise.all([
     query,
     supabase
       .from("checklist_items")
@@ -54,6 +68,29 @@ export default async function StaffJobsPage({ searchParams }: PageProps<"/staff/
       .eq("active", true)
       .order("sort_order", { ascending: true }),
   ]);
+
+  // Arrival photos live in the private bucket -- sign them for display.
+  const arrivalPaths = (rawJobs ?? []).flatMap((j) => j.arrival_photos.map((p) => p.photo_path));
+  const arrivalUrlByPath = new Map<string, string>();
+  if (arrivalPaths.length > 0) {
+    const { data: signed } = await supabase.storage.from("visit-photos").createSignedUrls(arrivalPaths, 60 * 60);
+    signed?.forEach((s) => {
+      if (s.signedUrl && s.path) arrivalUrlByPath.set(s.path, s.signedUrl);
+    });
+  }
+  const jobs = (rawJobs ?? []).map((j) => {
+    const latest = [...j.upgrade_requests].sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null;
+    return {
+      ...j,
+      arrival_photos: j.arrival_photos
+        .slice()
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))
+        .map((p) => ({ id: p.id, url: arrivalUrlByPath.get(p.photo_path) ?? "" }))
+        .filter((p) => p.url),
+      // A withdrawn recommendation can be filed again, so it's treated as none.
+      upgrade_request: latest && latest.status !== "cancelled" ? latest : null,
+    };
+  });
 
   // Standard Clean rotation: which of the two detail zones applies to a
   // given property alternates by how many prior completed Standard Clean

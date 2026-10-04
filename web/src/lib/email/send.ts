@@ -11,7 +11,10 @@ export type EmailTemplate =
   | "membership_renewal_30d"
   | "membership_renewal_3d"
   | "csat_survey"
-  | "redo_request_new";
+  | "redo_request_new"
+  | "upgrade_offer"
+  | "upgrade_approved"
+  | "upgrade_refunded";
 
 type SendNotificationEmailParams = {
   customerId: string;

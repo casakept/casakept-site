@@ -9,6 +9,8 @@ import {
   bookingPaymentFailedEmail,
   membershipActiveEmail,
   membershipPastDueEmail,
+  upgradeApprovedEmail,
+  upgradeRefundedEmail,
 } from "@/lib/email/templates";
 import { PRODUCT_CATEGORY_LABELS } from "@/lib/productCategories";
 import { addOnCentsFromItems } from "@/lib/membershipAddOn";
@@ -294,10 +296,100 @@ async function recordInvoicePayment(supabase: ServiceClient, invoiceStub: Stripe
   if (error) console.error("recordInvoicePayment insert failed:", error);
 }
 
+// A customer paid to upgrade a standard clean to a deep clean (see
+// upgrade_requests). The payment only counts if the offer is still open
+// inside its response window -- by then the crew may already have carried
+// on with the standard scope -- so a late payment, or one for an offer that
+// was declined or withdrawn, is refunded in full instead.
+async function handleUpgradePayment(supabase: ServiceClient, paymentIntent: Stripe.PaymentIntent) {
+  const requestId = paymentIntent.metadata.upgrade_request_id;
+  const now = new Date().toISOString();
+
+  await supabase.from("payments").update({ status: "succeeded" }).eq("stripe_payment_intent_id", paymentIntent.id);
+
+  const { data: approved } = await supabase
+    .from("upgrade_requests")
+    .update({ status: "approved", responded_at: now })
+    .eq("id", requestId)
+    .eq("status", "link_sent")
+    .gt("expires_at", now)
+    .select("booking_id, amount_cents")
+    .maybeSingle();
+
+  if (approved) {
+    const [{ data: booking }, { data: deepService }] = await Promise.all([
+      supabase.from("bookings").select("customer_id, price_cents").eq("id", approved.booking_id).single(),
+      supabase.from("services").select("id").eq("service_type", "deep_clean").eq("active", true).limit(1).maybeSingle(),
+    ]);
+    if (booking) {
+      // The visit becomes a deep clean: the crew's checklist switches to the
+      // deep-clean items and the price reflects what was charged.
+      const { error } = await supabase
+        .from("bookings")
+        .update({
+          service_type: "deep_clean",
+          service_id: deepService?.id ?? null,
+          price_cents: booking.price_cents + approved.amount_cents,
+        })
+        .eq("id", approved.booking_id);
+      if (error) console.error("handleUpgradePayment: booking update failed", error);
+
+      const { subject, html } = upgradeApprovedEmail({ amountCents: approved.amount_cents });
+      await sendNotificationEmail({
+        customerId: booking.customer_id,
+        bookingId: approved.booking_id,
+        template: "upgrade_approved",
+        subject,
+        html,
+      });
+    }
+    return;
+  }
+
+  // Not approved just now. If a redelivery of this same event already
+  // approved it, there's nothing to do.
+  const { data: request } = await supabase
+    .from("upgrade_requests")
+    .select("status, stripe_payment_intent_id, booking_id, amount_cents")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (request?.status === "approved" && request.stripe_payment_intent_id === paymentIntent.id) return;
+
+  try {
+    await stripe.refunds.create(
+      { payment_intent: paymentIntent.id },
+      { idempotencyKey: `upgrade-refund-${paymentIntent.id}` }
+    );
+  } catch (err) {
+    console.error("handleUpgradePayment: refund failed", { paymentIntentId: paymentIntent.id, err });
+    return;
+  }
+  await supabase.from("payments").update({ status: "refunded" }).eq("stripe_payment_intent_id", paymentIntent.id);
+
+  if (request) {
+    const { data: booking } = await supabase.from("bookings").select("customer_id").eq("id", request.booking_id).single();
+    if (booking) {
+      const { subject, html } = upgradeRefundedEmail({ amountCents: request.amount_cents });
+      await sendNotificationEmail({
+        customerId: booking.customer_id,
+        bookingId: request.booking_id,
+        template: "upgrade_refunded",
+        subject,
+        html,
+      });
+    }
+  }
+}
+
 async function handlePaymentIntentSucceeded(
   supabase: ServiceClient,
   paymentIntent: Stripe.PaymentIntent
 ) {
+  if (paymentIntent.metadata?.upgrade_request_id) {
+    await handleUpgradePayment(supabase, paymentIntent);
+    return;
+  }
+
   const { data: payment } = await supabase
     .from("payments")
     .select("id, booking_id")

@@ -325,3 +325,63 @@ export function membershipPastDueEmail(): { subject: string; html: string } {
     ),
   };
 }
+
+// The customer's copy of the deep-clean upgrade offer (the crew also texts
+// the same link from their own phone).
+export function upgradeOfferEmail(params: {
+  url: string;
+  amountCents: number;
+  minutes: number;
+}): { subject: string; html: string } {
+  const { url, amountCents, minutes } = params;
+  return {
+    subject: "Your crew recommends a deep clean today",
+    html: emailLayout(
+      `Review the photos and approve or decline within ${minutes} minutes.`,
+      `
+      <h2 style="color:#1B3B31;margin:0 0 12px;">Your crew recommends a deep clean</h2>
+      <p style="margin:0 0 20px;line-height:1.6;">
+        Your crew is at your home now and found it needs a deep clean to be done properly. You can upgrade
+        for ${formatCents(amountCents)} or keep your standard clean as booked -- nothing is charged unless you
+        approve. This offer is open for ${minutes} minutes.
+      </p>
+      <a href="${url}" style="display:inline-block;background:#E9A23B;color:#1B3B31;font-weight:700;padding:10px 22px;border-radius:99px;text-decoration:none;">
+        Review and respond
+      </a>
+      `
+    ),
+  };
+}
+
+export function upgradeApprovedEmail(params: { amountCents: number }): { subject: string; html: string } {
+  return {
+    subject: "Your visit is upgraded to a deep clean",
+    html: emailLayout(
+      "Thanks -- your crew is starting the deep clean.",
+      `
+      <h2 style="color:#1B3B31;margin:0 0 12px;">Your visit is upgraded</h2>
+      <p style="margin:0 0 20px;line-height:1.6;">
+        Thanks for approving. We charged ${formatCents(params.amountCents)} for the upgrade to a deep clean, and your
+        crew is starting now.
+      </p>
+      `
+    ),
+  };
+}
+
+export function upgradeRefundedEmail(params: { amountCents: number }): { subject: string; html: string } {
+  return {
+    subject: "We refunded your upgrade payment",
+    html: emailLayout(
+      "Your payment was refunded in full.",
+      `
+      <h2 style="color:#1B3B31;margin:0 0 12px;">Your upgrade payment was refunded</h2>
+      <p style="margin:0 0 20px;line-height:1.6;">
+        Your payment of ${formatCents(params.amountCents)} arrived after the upgrade offer had closed, and your crew
+        had already continued with your standard clean, so we've refunded it in full. If you'd still like a deep
+        clean, you can book one from your account.
+      </p>
+      `
+    ),
+  };
+}
