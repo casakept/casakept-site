@@ -812,11 +812,15 @@ export type Database = {
           access_notes: string | null
           address_line1: string
           address_line2: string | null
+          bathrooms: number | null
+          bedrooms: number | null
           city: string
           created_at: string
           customer_id: string
+          extra_rooms: string[]
           id: string
           label: string | null
+          sq_ft_min: number | null
           state: string
           updated_at: string
           zip: string
@@ -825,11 +829,15 @@ export type Database = {
           access_notes?: string | null
           address_line1: string
           address_line2?: string | null
+          bathrooms?: number | null
+          bedrooms?: number | null
           city: string
           created_at?: string
           customer_id: string
+          extra_rooms?: string[]
           id?: string
           label?: string | null
+          sq_ft_min?: number | null
           state?: string
           updated_at?: string
           zip: string
@@ -838,11 +846,15 @@ export type Database = {
           access_notes?: string | null
           address_line1?: string
           address_line2?: string | null
+          bathrooms?: number | null
+          bedrooms?: number | null
           city?: string
           created_at?: string
           customer_id?: string
+          extra_rooms?: string[]
           id?: string
           label?: string | null
+          sq_ft_min?: number | null
           state?: string
           updated_at?: string
           zip?: string

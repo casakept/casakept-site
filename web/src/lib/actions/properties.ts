@@ -2,10 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { isValidBathrooms, isValidBedrooms, isValidExtraRoom, isValidSqFtMin } from "@/lib/propertyDetails";
 
 export type PropertyActionState = {
   error?: string;
   success?: boolean;
+  propertyId?: string;
 };
 
 export async function addPropertyAction(
@@ -30,22 +32,47 @@ export async function addPropertyAction(
     return { error: "Address, city, and ZIP are required." };
   }
 
-  const { error } = await supabase.from("properties").insert({
-    customer_id: user.id,
-    label,
-    address_line1: addressLine1,
-    address_line2: addressLine2,
-    city,
-    state,
-    zip,
-    access_notes: accessNotes,
-  });
+  // Number("") is 0, so check for a missing value explicitly -- 0 is a
+  // legitimate sq ft selection ("Under 1,000") but never a valid bedroom
+  // or bathroom count.
+  const bedroomsRaw = String(formData.get("bedrooms") ?? "");
+  const bathroomsRaw = String(formData.get("bathrooms") ?? "");
+  const sqFtRaw = String(formData.get("sq_ft_min") ?? "");
+  const bedrooms = bedroomsRaw === "" ? NaN : Number(bedroomsRaw);
+  const bathrooms = bathroomsRaw === "" ? NaN : Number(bathroomsRaw);
+  const sqFtMin = sqFtRaw === "" ? NaN : Number(sqFtRaw);
 
-  if (error) return { error: error.message };
+  if (!isValidBedrooms(bedrooms)) return { error: "Choose the number of bedrooms." };
+  if (!isValidBathrooms(bathrooms)) return { error: "Choose the number of bathrooms." };
+  if (!isValidSqFtMin(sqFtMin)) return { error: "Choose your home's approximate square footage." };
+
+  const extraRooms = [...new Set(formData.getAll("extra_rooms").map(String))];
+  if (!extraRooms.every(isValidExtraRoom)) return { error: "One of the extra rooms isn't valid." };
+
+  const { data: property, error } = await supabase
+    .from("properties")
+    .insert({
+      customer_id: user.id,
+      label,
+      address_line1: addressLine1,
+      address_line2: addressLine2,
+      city,
+      state,
+      zip,
+      access_notes: accessNotes,
+      bedrooms,
+      bathrooms,
+      sq_ft_min: sqFtMin,
+      extra_rooms: extraRooms,
+    })
+    .select("id")
+    .single();
+
+  if (error || !property) return { error: error?.message ?? "Couldn't add that property." };
 
   revalidatePath("/account/properties");
   revalidatePath("/account/book");
-  return { success: true };
+  return { success: true, propertyId: property.id };
 }
 
 export async function deletePropertyAction(propertyId: string) {

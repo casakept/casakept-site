@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import AddPropertyForm from "@/components/account/AddPropertyForm";
 import DeletePropertyButton from "@/components/account/DeletePropertyButton";
+import { describeProperty } from "@/lib/propertyDetails";
 
 export const metadata: Metadata = {
   title: "Properties",
@@ -15,7 +16,7 @@ export default async function PropertiesPage() {
 
   const { data: properties } = await supabase
     .from("properties")
-    .select("id, label, address_line1, address_line2, city, state, zip, access_notes")
+    .select("id, label, address_line1, address_line2, city, state, zip, access_notes, bedrooms, bathrooms, sq_ft_min, extra_rooms")
     .eq("customer_id", user!.id)
     .order("created_at", { ascending: true });
 
@@ -40,6 +41,9 @@ export default async function PropertiesPage() {
                       <br />
                       {p.city}, {p.state} {p.zip}
                     </p>
+                    {describeProperty(p) && (
+                      <p style={{ fontSize: 13, color: "#6a746c", marginTop: 6 }}>{describeProperty(p)}</p>
+                    )}
                     {p.access_notes && (
                       <p style={{ fontSize: 12, color: "#9aa49d", marginTop: 6 }}>{p.access_notes}</p>
                     )}

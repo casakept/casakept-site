@@ -45,3 +45,4 @@ scripts/.redo_test_admin.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+scripts/.p1_test_customer.json

@@ -36,6 +36,7 @@ const initialState: BookingActionState = {};
 
 export default function BookingWizard({
   properties,
+  initialPropertyId,
   services,
   hasSubscription,
   extraServicesDiscountPct,
@@ -45,6 +46,7 @@ export default function BookingWizard({
   products,
 }: {
   properties: Property[];
+  initialPropertyId: string | null;
   services: Service[];
   hasSubscription: boolean;
   extraServicesDiscountPct: number;
@@ -56,8 +58,12 @@ export default function BookingWizard({
   const [state, formAction, pending] = useActionState(createBookingAction, initialState);
   const [paid, setPaid] = useState(false);
 
-  const [step, setStep] = useState(1);
-  const [propertyId, setPropertyId] = useState(properties.length === 1 ? properties[0].id : "");
+  // Arriving from "Book a visit at this property" already has the property
+  // chosen, so start at the service step (Back still reaches step 1).
+  const [step, setStep] = useState(initialPropertyId ? 2 : 1);
+  const [propertyId, setPropertyId] = useState(
+    initialPropertyId ?? (properties.length === 1 ? properties[0].id : "")
+  );
   const [serviceId, setServiceId] = useState("");
   const [scheduledDate, setScheduledDate] = useState("");
   const [timeWindow, setTimeWindow] = useState("");

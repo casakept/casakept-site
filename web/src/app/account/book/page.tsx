@@ -7,7 +7,10 @@ export const metadata: Metadata = {
   title: "Book a visit",
 };
 
-export default async function BookPage() {
+export default async function BookPage({ searchParams }: PageProps<"/account/book">) {
+  const params = await searchParams;
+  const requestedPropertyId = typeof params.property === "string" ? params.property : null;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -74,11 +77,16 @@ export default async function BookPage() {
     );
   }
 
+  // Only honor ?property= if it's one of this customer's own properties
+  // (the query above is already scoped to them).
+  const initialPropertyId = properties.find((p) => p.id === requestedPropertyId)?.id ?? null;
+
   return (
     <div>
       <h3>Book a visit</h3>
       <BookingWizard
         properties={properties}
+        initialPropertyId={initialPropertyId}
         services={services ?? []}
         hasSubscription={!!subscription}
         extraServicesDiscountPct={subscription?.membership_plans?.extra_services_discount_pct ?? 0}
