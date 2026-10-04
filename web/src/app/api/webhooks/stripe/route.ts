@@ -199,7 +199,11 @@ async function syncSubscription(supabase: ServiceClient, sub: Stripe.Subscriptio
     home_size_addon_cents: addOnCentsFromItems(sub),
   });
   if (error) {
-    console.error("syncSubscription insert failed:", error);
+    // 23505 = the unique stripe_subscription_id rule: another webhook
+    // delivery for this same subscription (e.g. invoice.paid racing
+    // customer.subscription.updated) created the row first. That one owns
+    // the first-signup side effects below, so this one just steps aside.
+    if (error.code !== "23505") console.error("syncSubscription insert failed:", error);
     return;
   }
 
