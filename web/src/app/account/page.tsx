@@ -27,7 +27,7 @@ export default async function AccountOverviewPage() {
         .select("id, service_type, scheduled_date, time_window, status, properties(address_line1, city)")
         .eq("customer_id", user!.id)
         .gte("scheduled_date", businessDateISO())
-        .not("status", "in", "(cancelled,completed)")
+        .not("status", "in", "(pending,cancelled,completed)")
         .order("scheduled_date", { ascending: true })
         .limit(5),
       supabase

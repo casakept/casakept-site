@@ -13,7 +13,7 @@ export default async function AdminOverviewPage() {
   const today = businessDateISO();
 
   const [
-    { count: pendingCount },
+    { count: needsAssignmentCount },
     { count: todayCount },
     { count: activeStaffCount },
     { count: activeMemberCount },
@@ -22,12 +22,12 @@ export default async function AdminOverviewPage() {
     supabase
       .from("bookings")
       .select("id", { count: "exact", head: true })
-      .eq("status", "pending"),
+      .eq("status", "confirmed"),
     supabase
       .from("bookings")
       .select("id", { count: "exact", head: true })
       .eq("scheduled_date", today)
-      .not("status", "in", "(cancelled,completed)"),
+      .not("status", "in", "(pending,cancelled,completed)"),
     supabase
       .from("staff")
       .select("id", { count: "exact", head: true })
@@ -41,7 +41,7 @@ export default async function AdminOverviewPage() {
       .select(
         "id, customer_id, service_type, scheduled_date, time_window, status, customer:profiles!bookings_customer_id_fkey(full_name)"
       )
-      .in("status", ["pending", "confirmed"])
+      .eq("status", "confirmed")
       .order("scheduled_date", { ascending: true })
       .limit(8),
   ]);
@@ -69,8 +69,8 @@ export default async function AdminOverviewPage() {
     <div>
       <div className="stat-row">
         <div className="stat">
-          <div className="n">{pendingCount ?? 0}</div>
-          <div className="l">Pending bookings</div>
+          <div className="n">{needsAssignmentCount ?? 0}</div>
+          <div className="l">Needs assignment</div>
         </div>
         <div className="stat">
           <div className="n">{todayCount ?? 0}</div>

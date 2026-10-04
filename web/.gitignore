@@ -46,3 +46,4 @@ scripts/.redo_test_admin.json
 *.tsbuildinfo
 next-env.d.ts
 scripts/.p1_test_customer.json
+scripts/.p2_test.json

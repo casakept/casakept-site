@@ -50,6 +50,7 @@ export default async function AdminCustomerDetailPage({ params }: PageProps<"/ad
          assigned_staff:staff!bookings_assigned_staff_id_fkey(profile:profiles!staff_id_fkey(full_name))`
       )
       .eq("customer_id", id)
+      .neq("status", "pending")
       .order("scheduled_date", { ascending: false })
       .limit(15),
   ]);

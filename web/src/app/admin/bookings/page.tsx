@@ -12,7 +12,7 @@ type BookingStatus = Database["public"]["Enums"]["booking_status"];
 
 const STATUS_FILTERS: { value: BookingStatus | "all"; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "pending", label: "Pending" },
+  { value: "pending", label: "Awaiting payment" },
   { value: "confirmed", label: "Confirmed" },
   { value: "assigned", label: "Assigned" },
   { value: "in_progress", label: "In progress" },
@@ -43,7 +43,12 @@ export default async function AdminBookingsPage({ searchParams }: PageProps<"/ad
     )
     .order("scheduled_date", { ascending: true });
 
-  if (statusFilter !== "all") {
+  // A "pending" booking is a checkout the customer started but hasn't paid
+  // for yet -- not a real booking, so "All" leaves it out and it's only
+  // reachable through the Awaiting payment filter.
+  if (statusFilter === "all") {
+    bookingsQuery = bookingsQuery.neq("status", "pending");
+  } else {
     bookingsQuery = bookingsQuery.eq("status", statusFilter);
   }
 
