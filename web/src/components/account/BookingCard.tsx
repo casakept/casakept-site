@@ -70,6 +70,14 @@ export default function BookingCard({ booking }: { booking: UpcomingBooking }) {
         </form>
       )}
 
+      {booking.status === "completed" && (
+        <div style={{ marginTop: 14 }}>
+          <Link className="btn ghost" href={`/account/visits/${booking.id}`} style={{ padding: "6px 16px", fontSize: 13 }}>
+            View photos &amp; checklist
+          </Link>
+        </div>
+      )}
+
       {canRate && (
         <div style={{ marginTop: 14 }}>
           <Link className="btn ghost" href={`/survey/${booking.csat!.token}`} style={{ padding: "6px 16px", fontSize: 13 }}>

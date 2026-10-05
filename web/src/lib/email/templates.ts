@@ -385,3 +385,36 @@ export function upgradeRefundedEmail(params: { amountCents: number }): { subject
     ),
   };
 }
+
+// Sent when the crew marks a visit complete -- the customer's first look at
+// what was done, with the crew's photos behind a login-protected page.
+export function visitCompleteEmail(params: {
+  serviceLabel: string;
+  scheduledDate: string;
+  photoCount: number;
+  url: string;
+}): { subject: string; html: string } {
+  const { serviceLabel, scheduledDate, photoCount, url } = params;
+  return {
+    subject: `Your ${serviceLabel.toLowerCase()} is complete`,
+    html: emailLayout(
+      photoCount > 0
+        ? `See the ${photoCount} photo${photoCount === 1 ? "" : "s"} from your visit.`
+        : "See what your crew completed.",
+      `
+      <h2 style="color:#1B3B31;margin:0 0 12px;">Your visit is complete</h2>
+      <p style="margin:0 0 20px;line-height:1.6;">
+        Your crew finished your ${serviceLabel.toLowerCase()} on ${formatDate(scheduledDate)}.
+        ${
+          photoCount > 0
+            ? `They photographed ${photoCount} area${photoCount === 1 ? "" : "s"} so you can see the work for yourself.`
+            : "You can see the checklist they completed."
+        }
+      </p>
+      <a href="${url}" style="display:inline-block;background:#E9A23B;color:#1B3B31;font-weight:700;padding:10px 22px;border-radius:99px;text-decoration:none;">
+        See your visit${photoCount > 0 ? " and photos" : ""}
+      </a>
+      `
+    ),
+  };
+}

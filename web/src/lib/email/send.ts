@@ -14,7 +14,8 @@ export type EmailTemplate =
   | "redo_request_new"
   | "upgrade_offer"
   | "upgrade_approved"
-  | "upgrade_refunded";
+  | "upgrade_refunded"
+  | "visit_complete";
 
 type SendNotificationEmailParams = {
   customerId: string;

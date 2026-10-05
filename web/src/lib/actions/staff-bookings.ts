@@ -2,6 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import { sendNotificationEmail } from "@/lib/email/send";
+import { visitCompleteEmail } from "@/lib/email/templates";
+import { SERVICE_LABELS } from "@/lib/serviceLabels";
+import { SITE_URL } from "@/lib/siteUrl";
 import type { Database } from "@/lib/supabase/database.types";
 
 export type StaffBookingActionState = {
@@ -74,7 +79,50 @@ export async function advanceBookingStatusAction(
     .upsert({ booking_id: bookingId, staff_id: staffId, ...checkinPatch }, { onConflict: "booking_id" });
   if (checkinError) console.error("advanceBookingStatusAction: checkin upsert failed", checkinError);
 
+  // Best-effort, like the checkin: the visit is already complete, and a
+  // failed email shouldn't undo or block that.
+  if (!isStarting) {
+    try {
+      await sendVisitCompleteEmail(bookingId);
+    } catch (err) {
+      console.error("advanceBookingStatusAction: visit-complete email failed", { bookingId, err });
+    }
+  }
+
   revalidatePath("/staff/jobs");
   revalidatePath("/staff");
   return { success: true };
+}
+
+// Tells the customer their visit is done and links to the page with the
+// crew's photos. Uses the service client: the crew member's own session
+// can't read the customer's profile or email.
+async function sendVisitCompleteEmail(bookingId: string) {
+  const service = createServiceClient();
+  const { data: booking } = await service
+    .from("bookings")
+    .select("customer_id, service_type, scheduled_date")
+    .eq("id", bookingId)
+    .single();
+  if (!booking) return;
+
+  const { count } = await service
+    .from("visit_checklist_entries")
+    .select("id", { count: "exact", head: true })
+    .eq("booking_id", bookingId)
+    .not("photo_path", "is", null);
+
+  const { subject, html } = visitCompleteEmail({
+    serviceLabel: SERVICE_LABELS[booking.service_type] ?? booking.service_type,
+    scheduledDate: booking.scheduled_date,
+    photoCount: count ?? 0,
+    url: `${SITE_URL}/account/visits/${bookingId}`,
+  });
+  await sendNotificationEmail({
+    customerId: booking.customer_id,
+    bookingId,
+    template: "visit_complete",
+    subject,
+    html,
+  });
 }
